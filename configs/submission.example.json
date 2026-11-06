@@ -1,0 +1,9 @@
+{
+  "test_images": "/path/to/MAGFiLO_1.0_Kaggle_2026/test/test_images",
+  "yolo_checkpoint": "/path/to/original_yolo/best.pt",
+  "native_checkpoint": "/path/to/original_native/best.pt",
+  "train_split": "/path/to/train_split.csv",
+  "val_split": "/path/to/val_split.csv",
+  "output": "/path/to/outputs/best84_submission_a100_v1",
+  "keep_stages": true
+}

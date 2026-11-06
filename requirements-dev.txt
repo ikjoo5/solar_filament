@@ -1,0 +1,9 @@
+# CPU contract tests; install PyTorch separately from its official CPU index.
+# This file is independent of requirements-eval.txt / requirements-submission.txt.
+numpy==2.3.5
+scipy==1.17.0
+opencv-python-headless==5.0.0.93
+Pillow==12.3.0
+pycocotools==2.0.11
+pytest==9.2.0
+requests==2.34.2

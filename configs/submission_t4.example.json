@@ -1,0 +1,11 @@
+{
+  "images": "/path/to/MAGFiLO_1.0_Kaggle_2026/test/test_images",
+  "expected_names_path": "/path/to/official_image_names.json",
+  "yolo_checkpoint": "/path/to/original_yolo/best.pt",
+  "native_checkpoint": "/path/to/original_native/best.pt",
+  "output_root": "/path/to/outputs/best84_submission_t4_v1",
+  "device": "cuda",
+  "native_batch": 1,
+  "precision": "fp16",
+  "expected_images": 180
+}

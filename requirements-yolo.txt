@@ -1,0 +1,7 @@
+-r requirements-analysis.txt
+ultralytics==8.4.182
+opencv-python==5.0.0.93
+
+# Install a compatible GPU torch/torchvision pair separately on your runtime.
+# Keep Colab's working CUDA build. Local CPU smoke validation used
+# torch==2.9.1+cpu and torchvision==0.24.1+cpu from the official CPU wheel index.
