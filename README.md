@@ -25,6 +25,7 @@ The current Colab entry point is the [notebook that loads source code from GitHu
 - [Current pipeline and experiment branches](docs/CURRENT_PIPELINE.md): architecture, source map, external files, and current results.
 - [Independent CHASE evaluation](docs/CHASE_INDEPENDENT_RESULTS.md): completed model comparisons and postprocessing diagnostics.
 - [Next CHASE/GONG experiment](docs/CHASE_GONG_NEXT_EXPERIMENT.md): proposed synthesis/adaptation comparisons and components still to implement.
+- [CHASE-shape synthesis protocol](docs/CHASE_SHAPE_SYNTHESIS_PROTOCOL.md): background selection, local rendering, labels, quality checks, and matched training controls.
 - [CHASE versus GONG](docs/CHASE_VS_GONG_20261104.md): observation, label, and dataset differences, with historical settings identified.
 - [CHASE training design](docs/CHASE_BOTH_TRAINING.md): historical training instructions and configuration, not a report that every planned run was completed.
 

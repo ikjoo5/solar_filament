@@ -2,6 +2,8 @@
 
 Status: **experiment design**. The CHASE shape renderer and CHASE-to-GONG converter described below have not yet been implemented or trained. This document distinguishes reusable code from new components that are still needed. SWEFFI remains deferred until the final stage, as requested by the user.
 
+The [concrete synthesis protocol](CHASE_SHAPE_SYNTHESIS_PROTOCOL.md) specifies backgrounds, shape sampling, rendering, labels, the preview audit, full-pass training, and matched controls for the first implementation.
+
 ## Initial recommendation
 
 With the code and data currently available, **a small pilot using CHASE mask shapes for local synthesis on GONG images is the more practical starting point for implementation and causal analysis.** It preserves GONG backgrounds and existing labels while allowing control over the contrast, size, position, and labels of added objects. Much of the tested copy-paste tooling can be reused.
