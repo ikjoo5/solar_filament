@@ -1,8 +1,8 @@
 # CHASE shape synthesis and GONG image adaptation: next experiment
 
-Status: **experiment design**. The CHASE shape renderer and CHASE-to-GONG converter described below have not yet been implemented or trained. This document distinguishes reusable code from new components that are still needed. SWEFFI remains deferred until the final stage, as requested by the user.
+Status: **historical experiment design**. A clean-background CHASE-shape renderer and fresh native-training entry are now implemented in [GONG + CHASE-shape T4 training](CHASE_SHAPE_T4_TRAINING.md), following the user's later choices. That guide supersedes this document's proposed continuation pilot and full-pass defaults for the current execution. Whole-image CHASE-to-GONG conversion and the broader A–D comparisons below remain proposals. No new training result is claimed. SWEFFI remains deferred until the final stage, as requested by the user.
 
-The [concrete synthesis protocol](CHASE_SHAPE_SYNTHESIS_PROTOCOL.md) specifies backgrounds, shape sampling, rendering, labels, the preview audit, full-pass training, and matched controls for the first implementation.
+The earlier [synthesis protocol](CHASE_SHAPE_SYNTHESIS_PROTOCOL.md) records proposed backgrounds, shape sampling, rendering, labels, and matched controls. Use the current execution guide above for active defaults.
 
 ## Initial recommendation
 

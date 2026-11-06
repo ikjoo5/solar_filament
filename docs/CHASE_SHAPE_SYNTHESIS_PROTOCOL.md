@@ -1,6 +1,6 @@
 # CHASE shapes on GONG backgrounds: implementation and experiment protocol
 
-Status: **proposed protocol, not an implemented generator or a completed experiment**. This specifies the next experiment in [the CHASE/GONG plan](CHASE_GONG_NEXT_EXPERIMENT.md). All numeric synthesis defaults below are starting choices, not measured optimal values. Train-derived appearance statistics, preview images, and model comparisons still need to be produced. SWEFFI is deferred.
+Status: **historical proposal, superseded for the current run**. The user subsequently selected fresh ImageNet initialization, the original best84 100-epoch/400-crop schedule, a 50% synthetic probability, and copies of an external clean background. The implemented native-only entry is [GONG + CHASE-shape T4 training](CHASE_SHAPE_T4_TRAINING.md). Its recipe takes precedence over this document's proposed GONG-background insertion, full-pass budgets, paired controls, and auxiliary-validity scheme. Those remain possible separate experiments, not features of the current run. No new training result is claimed. SWEFFI is deferred.
 
 ## 1. Objective and first comparison
 

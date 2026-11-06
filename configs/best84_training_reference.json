@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "source": "Verified original best84 training artifacts; not CHASE-only continuation",
+  "run": "20261028T030808Z_bedf3e21",
+  "artifact_sha256": {
+    "config.json": "477d95493d4b8d23c58a191b01d0750c58f0f1788a20ffbff72f2931968b6807",
+    "summary.json": "c6e4efa1643172b25c03adb1099da71de5a7b791e0599c1d9982ea8df9ac7356",
+    "history.json": "765ee6ae477633365a4317ca10a20d88427f5bb0369ff403b71dcb57cfd90fbe",
+    "run_source.py": "6d60b5705fb0fbde03a6fd2922c8b83839fa49b5a78cc3434e7dcf4a1b4a08b4"
+  },
+  "checkpoint_sha256": "ae6b209f72355fd52d2cb07182e69028e97c703a1977ad1e7b38b27cf8cebe69",
+  "initialization": "ImageNet ConvNeXt-Tiny encoder plus newly initialized U-Net decoder; no solar checkpoint warm start",
+  "training": {
+    "encoder": "tu-convnext_tiny",
+    "crop": 1024,
+    "epochs": 100,
+    "lr": 0.0001,
+    "batch": 2,
+    "accumulate": 2,
+    "steps_per_epoch": 200,
+    "samples_per_epoch": 400,
+    "effective_batch": 4,
+    "spine_weight": 0.1,
+    "seed": 42,
+    "workers": 2,
+    "synthetic_ratio": 0.2,
+    "warmup_epochs": 3,
+    "real_finish_epochs": 6,
+    "include_empty_synthetic": true,
+    "validate_every": 2,
+    "thresholds": [
+      0.35,
+      0.5,
+      0.65
+    ],
+    "min_areas": [
+      100,
+      200,
+      300
+    ],
+    "overlap": 0.25,
+    "infer_batch": 4,
+    "preprocessing": "limb_only",
+    "amp_dtype": "torch.bfloat16"
+  },
+  "optimizer": {
+    "name": "AdamW",
+    "weight_decay": 0.01,
+    "betas": [
+      0.9,
+      0.999
+    ],
+    "eps": 1e-08,
+    "gradient_clip_norm": 1.0
+  },
+  "scheduler": {
+    "name": "CosineAnnealingLR",
+    "T_max": 100,
+    "eta_min": 5e-06,
+    "learning_rate_warmup": false
+  },
+  "augmentation": {
+    "gamma": [
+      0.9,
+      1.1
+    ],
+    "brightness_multiplier": [
+      0.85,
+      1.15
+    ],
+    "d4": true
+  },
+  "sampling": {
+    "small_positive_probability": 0.5,
+    "other_positive_probability": 0.25,
+    "uniform_probability": 0.25,
+    "image_first": true,
+    "full_pass": false
+  },
+  "real_data": {
+    "train_physical_images": 616,
+    "validation_physical_images": 91,
+    "validation_annotation_groups": 101,
+    "validation_instances": 708
+  },
+  "synthetic_data": {
+    "source": "GONG-derived synthetic_copy_paste_v2",
+    "images": 462,
+    "positive_images": 452,
+    "blank_images": 10,
+    "spine_supervision": false
+  },
+  "completion": {
+    "epochs_completed": 100,
+    "best_epoch": 84,
+    "best_development_pq": 0.4299305777121099,
+    "optimizer_updates": 10000,
+    "total_crop_presentations": 40000
+  },
+  "hardware": {
+    "gpu": "NVIDIA A100-SXM4-40GB",
+    "amp": "torch.bfloat16"
+  }
+}

@@ -61,3 +61,4 @@ docs/evidence/
 # Publish the readable GitHub entry point, not those data-bearing bundles.
 notebooks/*
 !notebooks/SolarFilament_GitHub_Colab.ipynb
+!notebooks/SolarFilament_CHASE_Shape_T4.ipynb
