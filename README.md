@@ -1,36 +1,48 @@
 # Solar Filament Segmentation 2026
 
-GONG Hα 영상의 필라멘트를 검출·분할하고, 원본 2048×2048 좌표의 겹치지 않는 인스턴스 마스크를 제출하는 연구 코드입니다. 대회 지표는 PQ이며, 로컬 평가는 제공된 self-evaluation notebook의 **strict IoU > 0.5, 전체 주석 그룹 누적 방식**을 따릅니다.
+[Korean README](README.ko.md)
 
-현재 자체 제출 기준선은 **YOLO26s-seg + ConvNeXt-Tiny encoder U-Net(`best84`)**입니다. YOLO와 U-Net이 각각 영상에서 예측한 뒤 마스크를 결합합니다. YOLO 박스를 U-Net에 전달하는 ROI 모델과는 별도 구성입니다.
+Research code for detecting and segmenting filaments in GONG Hα images and producing non-overlapping instance masks in the original 2048×2048 coordinates. The competition metric is PQ. Local evaluation follows the provided self-evaluation notebook: **strict IoU > 0.5 matching and accumulation across all annotation groups**.
 
-| 기록 | 값 | 의미 |
+The current own-model submission baseline is **YOLO26s-seg + a U-Net with a ConvNeXt-Tiny encoder (`best84`)**. YOLO and U-Net predict from the images independently, then their masks are combined. This is a separate architecture from an ROI model that passes YOLO bounding boxes to U-Net.
+
+| Record | Value | Meaning |
 |---|---:|---|
-| 자체 기준선 public LB | **0.39** | 사용자가 실제 제출에서 확인한 표시 점수 |
-| 선택 당시 고정 검증 PQ | **0.472593** | 반복 사용한 개발 validation 결과 |
-| CHASE 비교 실행의 기존 복합모델 PQ | **0.471930** | 해당 실행에서 다시 계산한 대조군 |
-| 공개 예측을 추가·교체한 혼합 CSV public LB | **0.45** | 자체 모델이 독립적으로 생성한 성능과 구분 |
-| 외부 공개 CSV public LB | **0.55** | 참조 예측이며 test 정답이 아님 |
+| Own-model baseline public LB | **0.39** | Displayed score confirmed by the user's actual submission |
+| Fixed-validation PQ when selected | **0.472593** | Result on a repeatedly used development validation set |
+| Original ensemble PQ in the CHASE comparison | **0.471930** | Control recomputed in that comparison run |
+| Hybrid CSV with public predictions added/replaced: public LB | **0.45** | Separate from performance generated independently by the own model |
+| External public CSV: public LB | **0.55** | Reference predictions, not test ground truth |
 
-전체 구조와 최신 실험 상태는 [현재 파이프라인](docs/CURRENT_PIPELINE.ko.md)을 먼저 읽으세요. `docs/`의 다른 문서는 각 실험 당시의 기록이므로, 과거 문서의 “아직 실행하지 않음”이나 점수 표현을 최신 상태로 해석하지 않습니다.
+Start with the [current pipeline](docs/CURRENT_PIPELINE.md) for the architecture and latest experiment status. Other documents in `docs/` record their respective experiments at the time. Statements such as “not yet run” and historical score descriptions must be interpreted in that context rather than as the current status.
 
-Colab의 현재 시작점은 [GitHub 소스를 불러오는 실행 노트북](notebooks/SolarFilament_GitHub_Colab.ipynb)입니다. 코드 전체를 압축 문자열로 복사하는 대신 저장소의 버전을 고정해 실행하며, 데이터와 가중치는 본인의 Drive에서 읽습니다.
+The current Colab entry point is the [notebook that loads source code from GitHub](notebooks/SolarFilament_GitHub_Colab.ipynb). It pins a repository version instead of requiring the entire codebase to be pasted as a compressed string, and reads data and weights from your Drive.
 
-[Colab에서 열기](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_GitHub_Colab.ipynb) · [다음 CHASE/GONG 실험의 비교 설계](docs/CHASE_GONG_NEXT_EXPERIMENT.ko.md)
+[Open in Colab](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_GitHub_Colab.ipynb) · [Next CHASE/GONG experiment design](docs/CHASE_GONG_NEXT_EXPERIMENT.md)
 
-## 저장소에 포함하는 것
+## English documentation
 
-- `tools/`: 평가, 모델 학습, 재개, 독립 추론, 제출 생성 및 실험 코드.
-- `docs/`: 설계·실험 기록과 해석 범위.
-- `tests/`: 작은 합성 사례로 평가·좌표·캐시·재개를 검사하는 테스트와, 별도 자료가 필요한 재현 검사.
-- `requirements-*.txt`: 작업별 의존성.
-- `configs/`: 공개 가능한 설정 예제. 실제 데이터 경로는 실행 환경에서 지정합니다.
+- [Current pipeline and experiment branches](docs/CURRENT_PIPELINE.md): architecture, source map, external files, and current results.
+- [Independent CHASE evaluation](docs/CHASE_INDEPENDENT_RESULTS.md): completed model comparisons and postprocessing diagnostics.
+- [Next CHASE/GONG experiment](docs/CHASE_GONG_NEXT_EXPERIMENT.md): proposed synthesis/adaptation comparisons and components still to implement.
+- [CHASE versus GONG](docs/CHASE_VS_GONG_20261104.md): observation, label, and dataset differences, with historical settings identified.
+- [CHASE training design](docs/CHASE_BOTH_TRAINING.md): historical training instructions and configuration, not a report that every planned run was completed.
 
-대회 이미지·정답 파일·분할 CSV·합성 이미지·체크포인트·예측 RLE/CSV·원시 캐시·결과 ZIP은 별도로 보관합니다. 저장소를 clone하는 것만으로 과거 학습 가중치나 비공개 입력이 생기지는 않습니다. 필요한 파일을 본인의 Google Drive 또는 로컬 데이터 경로에 준비해야 합니다.
+The original Korean README and `.ko.md` documents are retained. Dated experiment documents remain historical records in Korean; the English guides above provide the current entry points and distinguish completed work from proposals.
 
-## 설치와 CPU 평가
+## Repository contents
 
-Python 3.12의 별도 환경에서 시작할 수 있습니다. 아래 명령은 저장소 루트 기준입니다.
+- `tools/`: evaluation, model training, resume, independent inference, submission generation, and experiment code.
+- `docs/`: designs, experiment records, and the limits of their interpretation.
+- `tests/`: small synthetic cases for evaluation, coordinates, caching, and resume, plus reproduction checks that require separate assets.
+- `requirements-*.txt`: dependencies for each task.
+- `configs/`: shareable configuration examples. Set actual data paths in the execution environment.
+
+Competition images, ground-truth files, split CSVs, synthetic images, checkpoints, prediction RLEs/CSVs, raw caches, and result ZIPs are stored separately. Cloning this repository does not provide historical trained weights or private inputs. Prepare the required files in your own Google Drive or local data directory.
+
+## Installation and CPU evaluation
+
+You can start in a separate Python 3.12 environment. Run the following commands from the repository root after cloning.
 
 ```bash
 git clone https://github.com/ikjoo5/solar_filament.git
@@ -41,13 +53,13 @@ python -m pip install -r requirements-eval.txt
 python -m unittest discover -s tests -p 'test_filament_eval.py' -v
 ```
 
-제출 CSV의 형식·RLE·마스크 겹침만 확인하려면:
+To check only submission CSV formatting, RLE validity, and mask overlaps:
 
 ```bash
 python tools/filament_eval.py --pred /path/to/submission.csv
 ```
 
-정답이 있는 같은 validation의 PQ를 계산하려면:
+To calculate PQ with ground truth from the same validation split:
 
 ```bash
 python tools/filament_eval.py \
@@ -55,19 +67,19 @@ python tools/filament_eval.py \
   --gt /path/to/validation_gt.csv
 ```
 
-GT가 없으면 PQ를 계산하지 않습니다. 공개 test 예측과의 IoU는 참조 일치도이며 실제 test recall이나 PQ가 아닙니다. 정답 JSON의 변환은 `python tools/convert_annotations.py --help`에서 확인할 수 있습니다. 다른 split의 예측과 GT를 조합하지 마세요.
+PQ is not calculated without ground truth. IoU against public test predictions measures reference agreement, not actual test recall or PQ. See `python tools/convert_annotations.py --help` for ground-truth JSON conversion. Do not combine predictions and ground truth from different splits.
 
-## 기존 기준선으로 제출 파일 생성
+## Generating a submission with the original baseline
 
-CUDA와 호환되는 PyTorch/torchvision이 설치된 GPU 환경이 필요합니다. Colab에서는 제공되는 CUDA 조합을 유지하고 필요한 추가 패키지를 설치합니다.
+A GPU environment with CUDA-compatible PyTorch and torchvision is required. In Colab, preserve the provided CUDA combination and install the additional packages needed.
 
 ```bash
 python -m pip install -r requirements-submission.txt
 ```
 
-기본 제출 엔진은 A100에서 사용했던 native batch 4 구성입니다. 다음과 같이 **실제 경로로 수정한 JSON**을 저장합니다.
+The default submission engine uses native batch size 4, as used on A100. Save JSON such as the following, **replacing the paths with your actual locations**.
 
-편집 가능한 예제는 [A100 설정](configs/submission.example.json), [T4 설정](configs/submission_t4.example.json)에 있습니다. `.local.json` 이름으로 복사한 개인 설정은 Git에서 제외됩니다. T4 Colab 노트북은 기존 CUDA 라이브러리를 유지하는 별도 설치 helper를 사용합니다. `requirements-eval.txt`와 `requirements-submission.txt`의 NumPy 고정 버전은 다르므로 CPU 평가 환경과 GPU 재현 환경을 분리하세요.
+Editable examples are available for [A100](configs/submission.example.json) and [T4](configs/submission_t4.example.json). Private copies with filenames ending in `.local.json` are excluded from Git. The T4 Colab notebook uses a separate installation helper that preserves the existing CUDA libraries. The NumPy versions pinned in `requirements-eval.txt` and `requirements-submission.txt` differ, so keep CPU evaluation and GPU reproduction in separate environments.
 
 ```json
 {
@@ -87,30 +99,30 @@ python tools/submission_driver.py \
   --result /path/to/submission_result.json
 ```
 
-- 입력은 원본 test 이미지와 두 가중치입니다. 기존 제출 CSV나 공개 0.55 RLE를 읽어 기준선 예측에 섞지 않습니다.
-- 원래 가중치와 분할의 SHA를 검사합니다. 다른 모델을 이 고정 재현 경로에 넣고 SHA 검사만 해제하는 방식으로 비교하지 않습니다.
-- 이미지별 완료 결과와 단계 캐시를 저장합니다. 같은 입력·설정·코드·런타임에서 재실행하면 완료 부분을 재사용합니다. 조건이 바뀌면 새 output 폴더를 사용합니다.
-- 모든 test 이미지가 끝난 후 `submission_pq0472593.csv`를 씁니다. 파일명의 숫자는 과거 validation 기준선이며, 생성 파일의 LB 점수를 뜻하지 않습니다.
-- Kaggle에 자동 제출하지 않습니다.
+- Inputs are the original test images and the two checkpoints. The baseline does not read or mix in an existing submission CSV or the public 0.55 RLE predictions.
+- SHA checks verify the original weights and splits. Do not compare a different model through this frozen reproduction path by simply disabling those checks.
+- Completed per-image results and stage caches are saved. Rerunning with the same inputs, configuration, code, and runtime reuses completed work. Use a new output directory when conditions change.
+- After all test images are complete, the engine writes `submission_pq0472593.csv`. The number in the filename refers to the historical validation baseline, not the generated file's LB score.
+- The engine does not submit automatically to Kaggle.
 
-T4 batch 1, 원본 전체 파이프라인과 R1을 같은 추론에서 비교하는 별도 엔진은 `tools/r1_test_submission.py`입니다. `--help`와 [현재 파이프라인의 T4 설정](docs/CURRENT_PIPELINE.ko.md#t4에서-기준선과-r1을-같이-만드는-경로)을 확인하세요. R1은 사용자가 확인한 표시 public LB에서 **0.39→0.39**였으므로 채택된 상승으로 기록하지 않습니다.
+`tools/r1_test_submission.py` is a separate engine for T4 batch size 1 that compares the full original pipeline and R1 using the same inference run. See `--help` and the [T4 settings in the current pipeline guide](docs/CURRENT_PIPELINE.md#producing-the-baseline-and-r1-together-on-t4). R1 produced **0.39 → 0.39** in the user-confirmed displayed public LB scores, so it is not recorded as an adopted improvement.
 
-## 학습과 실험 진입점
+## Training and experiment entry points
 
-| 목적 | 주요 소스 | 필요한 별도 자료 |
+| Purpose | Main source files | Required external assets |
 |---|---|---|
-| native U-Net 학습·재개 | `solar_a100_train_standalone.py`, `native_mixed_data.py` | GONG train/valid, annotations, 선택한 합성 자료 |
-| 고정 분할 합성 실험 | `targeted_synthetic_data.py`, `targeted_synthetic_training.py` | train 유래 donor·배경·출처 메타데이터 |
-| 5-fold 학습·OOF 평가 | `fivefold_study.py`, `fivefold_full_pipeline.py`, `evaluate_fivefold_study.py` | 새 fold 분할 및 해당 fold의 가중치/캐시 |
-| CHASE 데이터·학습 | `chase_transfer_data.py`, `chase_best84_training.py`, `chase_yolo_training.py` | CHASE 이미지/마스크와 원래 GONG 가중치 |
-| CHASE 독립 비교 | `chase_independent_plain_worker.py` | 완료한 CHASE 실험의 Drive 폴더·manifest·4개 가중치 |
-| detection → ROI segmentation 실험 | `roi_filament_pipeline.py`, `bbox_probe_pipeline.py`, `detr_best84_pipeline.py` | 실험별 detector/segmenter 가중치와 설정 |
+| Native U-Net training/resume | `solar_a100_train_standalone.py`, `native_mixed_data.py` | GONG train/validation, annotations, selected synthetic data |
+| Fixed-split synthetic experiments | `targeted_synthetic_data.py`, `targeted_synthetic_training.py` | Training-derived donors, backgrounds, and provenance metadata |
+| 5-fold training/OOF evaluation | `fivefold_study.py`, `fivefold_full_pipeline.py`, `evaluate_fivefold_study.py` | New fold splits and the weights/caches for each fold |
+| CHASE data/training | `chase_transfer_data.py`, `chase_best84_training.py`, `chase_yolo_training.py` | CHASE images/masks and the original GONG weights |
+| Independent CHASE comparison | `chase_independent_plain_worker.py` | Completed CHASE experiment's Drive directory, manifest, and four checkpoints |
+| Detection → ROI segmentation experiments | `roi_filament_pipeline.py`, `bbox_probe_pipeline.py`, `detr_best84_pipeline.py` | Experiment-specific detector/segmenter weights and configuration |
 
-모든 소스는 `tools/` 아래에 있습니다. 각 CLI의 `--help`와 해당 실험 문서를 확인하세요. 일부 과거 실행기는 입력 SHA·출처를 고정한 **기존 실행 재현용**이며 범용 학습 명령이 아닙니다. Colab 패키지 생성기에는 별도 assets가 필요한 경우가 있으므로, 파일이 없는데 빈 데이터나 임의 manifest로 우회하지 않습니다.
+All source files listed above are under `tools/`. Consult each CLI's `--help` and its experiment documentation. Some historical launchers are intended to **reproduce an existing run** with pinned input hashes and provenance; they are not general-purpose training commands. Some Colab package builders require separate assets. Do not work around missing files by supplying empty data or arbitrary manifests.
 
-전체 테스트를 무조건 실행하면 외부 데이터·과거 실행 디렉터리·GPU가 필요한 검사가 포함될 수 있습니다. 새 환경에서는 먼저 위의 데이터 없는 평가 테스트를 실행하고, 작업에 필요한 테스트와 실제 입력 검증을 이어서 실행합니다. CPU 검사 통과는 새 GPU 학습 완료나 점수 향상의 증거가 아닙니다.
+Running every test indiscriminately may include checks that require external datasets, historical run directories, or GPUs. In a new environment, start with the data-free evaluation tests above, then run the tests and actual-input validation required for your task. Passing CPU checks is not evidence of completed GPU training or improved scores.
 
-데이터 없이 실행하는 핵심 CPU 검사 모음은 다음과 같습니다. 이 설치 명령은 **별도 CPU 환경용**이며, 동작 중인 Colab CUDA 환경에 적용해 GPU용 PyTorch를 교체하지 않습니다.
+The following runs the core CPU checks without dataset files. These installation commands are for a **separate CPU environment**. Do not use them to replace GPU PyTorch in an active Colab CUDA environment.
 
 ```bash
 python -m pip install torch==2.9.1 torchvision==0.24.1 \
@@ -119,12 +131,14 @@ python -m pip install -r requirements-dev.txt
 python tools/check_core.py
 ```
 
-동일한 검사 목록을 GitHub Actions에서도 실행합니다. 데이터·과거 결과가 필요한 전체 이력 테스트를 이 핵심 검사에 포함한 것으로 표시하지 않습니다.
+GitHub Actions is configured to run the same check list. This core suite does not include every historical reproduction test that needs datasets or previous results.
 
-## 실험 원칙
+## Experiment principles
 
-- 재학습 비교에는 원래 고정 train 616장 / validation 91장을 사용합니다. validation은 101개 annotator 그룹과 708개 객체를 포함합니다.
-- 5-fold OOF는 각 영상을 학습하지 않은 fold 모델의 예측으로만 구성합니다. `best84`나 다른 fold의 학습 가중치를 새 OOF에 끼워 넣지 않습니다.
-- 합성의 donor·배경·영상 통계는 train에서만 가져옵니다. 검증·test 자료를 합성 학습 재료로 쓰지 않습니다.
-- PQ와 함께 SQ/RQ·TP/FP/FN을 기록하고, 반복 사용한 validation/OOF의 개선과 실제 LB 개선을 구분합니다.
-- CHASE는 계속 활용할 연구 대상입니다. CHASE-only 60에폭 가중치는 현재 기준선을 대체하지 않습니다. GONG 혼합·영상 적응·형태 합성은 별도 실험으로 설계하며, SWEFFI는 후속 단계로 보류합니다.
+- Retraining comparisons use the original fixed split of 616 training images and 91 validation images. Validation contains 101 annotator groups and 708 objects.
+- 5-fold OOF consists only of predictions from models that were not trained on the evaluated image. Do not insert `best84` or weights trained on a different fold into a new OOF evaluation.
+- Synthetic donors, backgrounds, and image statistics come only from training data. Do not use validation/test data as material for synthetic training samples.
+- Record SQ/RQ and TP/FP/FN alongside PQ. Distinguish improvements on repeatedly used validation/OOF data from actual LB improvements.
+- CHASE remains a research direction. The CHASE-only 60-epoch weights do not replace the current baseline. GONG mixing, image adaptation, and shape synthesis are separate experiments; SWEFFI is reserved for a later stage.
+- The first synthesis pilot starts both the GONG-only continued-training control and the GONG + CHASE-shape synthesis branch from the same original GONG checkpoint, with matched update budgets and evaluation rules. The shape renderer still needs implementation; no improvement is assumed.
+- Later matched comparisons may train new models from the same generic pretrained weights. This is distinct from random initialization and from continuing the solar-specific `best84` checkpoint. Record the initialization source and keep it identical between compared branches.

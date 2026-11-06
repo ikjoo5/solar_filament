@@ -166,12 +166,12 @@ def test_modified_local_code_and_changed_names_are_rejected(notebook):
     file = item.code / 'tools/r1_test_submission.py'
     original = file.read_bytes()
     file.write_bytes(b'# user edit\n')
-    with pytest.raises(ValueError, match='로컬 코드 변경'):
+    with pytest.raises(ValueError, match='Local code changes'):
         item.prepare()
     assert file.read_bytes() == b'# user edit\n'
     file.write_bytes(original)
     (item.images / 'extra.jpeg').write_bytes(b'wrong set')
-    with pytest.raises(ValueError, match='공식 test180'):
+    with pytest.raises(ValueError, match='official test180'):
         item.prepare()
 
 
@@ -201,7 +201,7 @@ def test_child_failure_log_and_changed_completed_output(notebook, capsys):
     assert 'fixture_inner_failure' in capsys.readouterr().out
     assert 'fixture_inner_failure' in (item.output / 'github_inference.log').read_text()
     assert item.calls['downloads'] == [] and item.calls['killed']
-    with pytest.raises(ValueError, match='완료 파일'):
+    with pytest.raises(ValueError, match='completed output file'):
         item.infer(tamper=True)
     assert item.calls['downloads'] == []
 
@@ -209,6 +209,6 @@ def test_child_failure_log_and_changed_completed_output(notebook, capsys):
 def test_modified_archive_is_rejected_before_any_download(notebook):
     item = notebook
     item.prepare()
-    with pytest.raises(ValueError, match='결과 ZIP'):
+    with pytest.raises(ValueError, match='results ZIP'):
         item.infer(tamper='archive')
     assert item.calls['downloads'] == []
