@@ -62,3 +62,4 @@ docs/evidence/
 notebooks/*
 !notebooks/SolarFilament_GitHub_Colab.ipynb
 !notebooks/SolarFilament_CHASE_Shape_T4.ipynb
+!notebooks/SolarFilament_CHASE_Cache_Backup.ipynb

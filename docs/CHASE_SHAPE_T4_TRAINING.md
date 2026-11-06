@@ -81,6 +81,10 @@ fixed_split_experiments/chase_shape_best84_recipe_t4_v1/
 
 Full synthetic PNGs and processed image caches stay on local Colab storage at `/content/chase_shape_best84_recipe_t4_cache`, reducing Drive use. They can be regenerated from persistent recipes after a reset. Completed original CHASE downloads remain on Drive. Resuming may verify data and rebuild local caches; that does not imply downloading all source images again.
 
+To preserve the generated PNGs before deleting a runtime, stop the training cell while keeping the runtime connected, then copy the [synthetic-cache backup cell](../notebooks/SolarFilament_CHASE_Cache_Backup.ipynb) into that **same training notebook/runtime** and execute it. A separate runtime cannot access the generated local PNGs. It saves all generated PNGs in `synthetic_images_cache.zip` inside the experiment's Drive folder. Wait for the backup-completed message before disconnecting/deleting the runtime. Existing model checkpoints and data remain intact.
+
+On a new runtime, the updated main training notebook automatically restores that archive before launching the saved training code. Restoration verifies the saved synthesis identity and each PNG's hash; it cannot silently substitute a different synthetic dataset. Valid local images are reused. Source integrity checks and recreation of processed limb/target caches can still take time, so this is not an instant-resume guarantee. The archive contains raw synthetic PNGs only, not all temporary caches or model weights. The first backup prints its actual byte count and requires that much additional Drive space; PNG entries are stored without redundant compression.
+
 ## Resume behavior
 
 - Run the **same cell** again with the same output folder. It validates the saved code/configuration and restores the last committed completed epoch, including model, optimizer, scheduler, AMP scaler, and random-number state.
@@ -88,7 +92,7 @@ Full synthetic PNGs and processed image caches stay on local Colab storage at `/
 - Keep `RUN_UNTIL_EPOCH = 100` for the full run. A smaller value pauses at that completed epoch while preserving the 100-epoch cosine schedule. Increasing it later resumes instead of restarting.
 - A finished 100-epoch run is not trained for another 100 epochs when rerun.
 - Code/data/runtime mismatches stop with an explicit error rather than silently changing the experiment. Deliberate protocol changes need a new output directory.
-- The cell starts a separate child process, writes full logs to Drive, shows bounded progress tails, and terminates its own child group when interrupted. Colab or Drive failures can still interrupt execution; this is checkpoint recovery, not a guarantee of uninterrupted service.
+- The cell starts a separate child process, writes full logs to Drive, relays bounded progress tails through the notebook kernel, and terminates its own child group when interrupted. Early notebook versions inherited child stdout directly, which could leave only the Drive-mounted message visible even while training progressed. Use `training.log` to check an already-running older cell; there is no need to interrupt active learning solely to refresh its display. Updating this notebook wrapper does not alter the saved training recipe or checkpoint identity. Colab or Drive failures can still interrupt execution; this is checkpoint recovery, not a guarantee of uninterrupted service.
 - Colab's installed torch/torchvision CUDA combination is preserved. Small supporting dependencies are installed separately. A GPU probe checks the T4 FP16 depthwise-convolution path before training.
 
 ## Evaluation and result review

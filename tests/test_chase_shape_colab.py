@@ -1,15 +1,18 @@
 """Exercise source pinning, fresh-runtime resume and subprocess boundaries on CPU."""
 from contextlib import contextmanager
+import ast
 import hashlib
 import importlib.metadata
 import importlib.util
 import json
+import io
 from pathlib import Path
 import shutil
 import signal
 import subprocess
 import sys
 import types
+import urllib.request
 
 import pytest
 
@@ -228,7 +231,10 @@ def notebook(fixture,tmp_path,monkeypatch):
             bootstrap=Path(command[2]); repo=bootstrap.parents[1]
             launcher.install(repo,fixture.base,fixture.output,fixture.cache)
             write_result(fixture.output)
-            return types.SimpleNamespace(wait=lambda **kw:0,poll=lambda:0,pid=999999)
+            assert kwargs['stdout']==subprocess.PIPE and kwargs['stderr']==subprocess.STDOUT
+            assert kwargs['text'] and kwargs['bufsize']==1
+            return types.SimpleNamespace(wait=lambda **kw:0,poll=lambda:0,pid=999999,
+                                         stdout=io.StringIO('Worker progress from saved launcher\n'))
         return real_popen(command,**kwargs)
     monkeypatch.setattr(subprocess,'Popen',popen)
     return types.SimpleNamespace(fixture=fixture,source=source,checkout=checkout,
@@ -264,3 +270,67 @@ def test_one_cell_preserves_dirty_checkout(notebook):
     with pytest.raises(ValueError,match='local edits'):
         item.execute()
     assert changed.read_text()=='# user edit\n' and len(item.commands)==1
+
+
+@pytest.mark.parametrize('exit_code',[0,7])
+def test_notebook_forwards_real_child_stdout_and_stderr_to_kernel(capsys,exit_code):
+    """Kernel capture does not receive inherited child FDs; relay both streams."""
+    document=json.loads(NOTEBOOK.read_text())
+    source=''.join(next(c['source'] for c in document['cells'] if c['cell_type']=='code'))
+    tree=ast.parse(source)
+    start=next(i for i,node in enumerate(tree.body) if isinstance(node,ast.Assign)
+               and any(isinstance(t,ast.Name) and t.id=='process' for t in node.targets))
+    assert isinstance(tree.body[start+1],ast.Try)
+    block=ast.Module(body=tree.body[start:start+2],type_ignores=[])
+    namespace=dict(subprocess=subprocess,os=launcher.os,signal=signal,
+        command=[sys.executable,'-u','-c',
+                 'import sys; print("epoch 22/100",flush=True); '
+                 'print("stderr visible",file=sys.stderr,flush=True); sys.exit('+str(exit_code)+')'])
+    if exit_code:
+        with pytest.raises(subprocess.CalledProcessError) as error:
+            exec(compile(block,'notebook_output_bridge','exec'),namespace)
+        assert error.value.returncode==exit_code
+    else:
+        exec(compile(block,'notebook_output_bridge','exec'),namespace)
+    captured=capsys.readouterr()
+    assert 'epoch 22/100' in captured.out and 'stderr visible' in captured.out
+    assert namespace['process'].stdout.closed
+
+
+def test_cache_helper_is_pinned_and_survives_network_free_resume(tmp_path,monkeypatch):
+    source=''.join(next(c['source'] for c in json.loads(NOTEBOOK.read_text())['cells']
+                        if c['cell_type']=='code'))
+    tree=ast.parse(source)
+    definitions=[node for node in tree.body if
+                 (isinstance(node,ast.FunctionDef) and node.name=='cache_tools') or
+                 (isinstance(node,ast.Assign) and any(isinstance(t,ast.Name) and
+                    t.id in ('CACHE_HELPER_REV','CACHE_HELPER_SHA') for t in node.targets))]
+    namespace=dict(OUTPUT=tmp_path,hashlib=hashlib,importlib=importlib,urllib=urllib)
+    exec(compile(ast.Module(body=definitions,type_ignores=[]),'cache_loader','exec'),namespace)
+    payload=(ROOT/'tools/chase_shape_cache.py').read_bytes()
+    assert hashlib.sha256(payload).hexdigest()==namespace['CACHE_HELPER_SHA']
+    calls=[]
+    def download(url,**kwargs):
+        calls.append(url)
+        assert '/'+namespace['CACHE_HELPER_REV']+'/' in url
+        return io.BytesIO(payload)
+    monkeypatch.setattr(urllib.request,'urlopen',download)
+    helper=namespace['cache_tools']()
+    assert callable(helper.backup) and callable(helper.restore) and len(calls)==1
+    monkeypatch.setattr(urllib.request,'urlopen',lambda *a,**kw:pytest.fail('resume requires no download'))
+    assert namespace['cache_tools']().restore(tmp_path)['status']=='not_prepared'
+    saved=next((tmp_path/'cache_support').glob('*.py'))
+    saved.write_bytes(b'raise RuntimeError("must never execute changed code")')
+    with pytest.raises(ValueError,match='checksum differs'):
+        namespace['cache_tools']()
+
+
+def test_backup_notebook_is_single_plain_cell_and_uses_same_pinned_helper():
+    document=json.loads((ROOT/'notebooks/SolarFilament_CHASE_Cache_Backup.ipynb').read_text())
+    cells=[c for c in document['cells'] if c['cell_type']=='code']
+    assert len(cells)==1 and not cells[0]['outputs'] and cells[0]['execution_count'] is None
+    source=''.join(cells[0]['source'])
+    compile(source,'backup_notebook','exec')
+    assert 'base64' not in source.lower() and 'cache_tools().backup(OUTPUT)' in source
+    assert hashlib.sha256((ROOT/'tools/chase_shape_cache.py').read_bytes()).hexdigest() in source
+    assert 'BACKUP COMPLETE' in source

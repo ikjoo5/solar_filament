@@ -25,6 +25,7 @@ TESTS = (
     'tests/test_chase_shape_synthesis.py',
     'tests/test_chase_shape_training.py',
     'tests/test_chase_shape_colab.py',
+    'tests/test_chase_shape_cache.py',
 )
 
 
@@ -33,6 +34,7 @@ def main():
     required.append(ROOT / 'configs/chase_ahas2024_2025_manifest.json')
     required.append(ROOT / 'notebooks/SolarFilament_GitHub_Colab.ipynb')
     required.append(ROOT / 'notebooks/SolarFilament_CHASE_Shape_T4.ipynb')
+    required.append(ROOT / 'notebooks/SolarFilament_CHASE_Cache_Backup.ipynb')
     missing = [str(path.relative_to(ROOT)) for path in required if not path.is_file()]
     if missing:
         raise SystemExit('Incomplete code checkout: ' + ', '.join(missing))
