@@ -2,12 +2,6 @@
 
 **Teaching a computer to find the Sun's dark ribbons — and trace each one separately.**
 
-English · [한국어](README.ko.md) · [Kaggle challenge](https://www.kaggle.com/competitions/filament-segmentation-2026) · [Run the code](docs/TECHNICAL_GUIDE.md)
-
-![A long filament erupting from the Sun, seen in a colorful NASA SDO observation.](docs/assets/readme/solar_eruption_nasa.jpg)
-
-*A solar filament eruption, observed in extreme ultraviolet light. Credit: [NASA/Goddard Space Flight Center](https://svs.gsfc.nasa.gov/11095/). The competition uses a different view of the Sun: grayscale Hα telescope images.*
-
 ## What are we looking for?
 
 **Solar filaments** are long strands of relatively cool, dense plasma held above the Sun by magnetic fields. Against the bright solar disk, they look like dark ribbons in **Hα**, a wavelength that reveals hydrogen in the solar atmosphere. Identifying their shapes helps researchers study these changing solar structures. [Learn more at NSO](https://nso.edu/for-public/sun-science/prominence-filaments/).
@@ -24,27 +18,21 @@ The [Solar Filament Segmentation Challenge 2026](https://www.kaggle.com/competit
 
 **A mask marks which pixels belong to an object.** Different mask colors identify different filaments; the colors are labels, not the Sun's observed colors. A good prediction follows the full shape while keeping neighboring filaments separate. The challenge's **Panoptic Quality (PQ)** score measures both shape agreement and object recognition.
 
-## How the pipeline finds each filament
+## Model pipeline at a glance
 
-Two models inspect the image in parallel. **YOLO26s-seg** finds candidate objects and their masks. A **ConvNeXt-Tiny + U-Net** model estimates how likely each pixel is to belong to a filament. Combining these views helps recover faint structure and refine object boundaries.
+The submitted baseline combines **YOLO26s-seg** with a **ConvNeXt-Tiny encoder and U-Net decoder**. YOLO proposes object masks; U-Net estimates filament probability at each pixel. The two networks process images independently, bringing complementary evidence to instance reconstruction. `best84` identifies the selected U-Net checkpoint.
 
 ```mermaid
-flowchart TD
-    A["Solar observation<br/>GONG Hα"] --> B["Balance disk brightness<br/>Prepare overlapping crops"]
-    B --> Y["Find objects<br/>YOLO26s-seg"]
-    B --> U["Trace pixel detail<br/>ConvNeXt-Tiny + U-Net"]
-    Y --> F["Combine evidence<br/>Refine and separate masks"]
-    U --> F
-    F --> O["One mask per filament<br/>Submission CSV"]
-    classDef input fill:#fff0d6,stroke:#b56916,color:#33220c
-    classDef detector fill:#e7f1ff,stroke:#397ac0,color:#143555
-    classDef segmenter fill:#f0eaff,stroke:#8058bb,color:#392552
-    classDef result fill:#ddf6ef,stroke:#23816c,color:#123e34
-    class A,B input
-    class Y detector
-    class U segmenter
-    class F,O result
+flowchart LR
+    A["GONG image<br/>2048 × 2048"] --> B["Limb correction<br/>Views / tiles"]
+    B --> Y["YOLO26s-seg"]
+    B --> N["ConvNeXt-Tiny<br/>U-Net · best84"]
+    Y --> M["Mask fusion<br/>Refine / filter"]
+    N --> M
+    M --> R["Non-overlap masks<br/>RLE CSV"]
 ```
+
+The encoder extracts features at multiple spatial resolutions. The decoder combines these features through skip connections to recover fine spatial detail. Its foreground probability map supplies additional candidates and boundary evidence to the ensemble.
 
 Brightness correction reduces the Sun's natural darkening toward the edge. Overlapping crops preserve small details, and predictions from several orientations are brought back to the original image coordinates before fusion.
 
@@ -57,7 +45,7 @@ Brightness correction reduces the Sun's natural darkening toward the edge. Overl
 A faint dark patch is easier to interpret when we can also see the longer structure around it. The **context-block method** adds this wider view inside the U-Net: parallel dilated convolutions examine several scales, and pooling summarizes the current crop. A learned gate controls how much this information changes the deepest features; skip connections carry fine detail to the decoder.
 
 ```mermaid
-flowchart TD
+flowchart LR
     I["Image crop"] --> E["ConvNeXt-Tiny encoder"]
     E --> F["Deepest features"]
     F --> C["Wider context<br/>Multi-scale convolutions<br/>+ crop summary"]
@@ -92,7 +80,6 @@ The CHASE-shape experiment creates three non-overlapping insertions per image. R
 
 | I want to… | Start here |
 |---|---|
-| Run the code or see recorded results | [Technical guide](docs/TECHNICAL_GUIDE.md) |
 | Follow preprocessing, mask fusion, and submission generation | [Pipeline walkthrough](docs/CURRENT_PIPELINE.md) |
 | Understand U-Net and the context method | [Model architecture](docs/MODEL_ARCHITECTURE.md) |
 | Explore training with GONG, SWEFil, and synthetic examples | [Mixed-data training](docs/SWEFIL_RETRAINING_PLAN.md) |
