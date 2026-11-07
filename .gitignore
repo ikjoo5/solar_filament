@@ -35,6 +35,10 @@ logs/
 *.csv
 *.jsonl
 *.jpg
+# Small credited README figures; full observations and prediction exports stay external.
+!docs/assets/readme/filament_intro.jpg
+!docs/assets/readme/preprocessing.jpg
+!docs/assets/readme/model_predictions.jpg
 *.jpeg
 *.png
 *.tif

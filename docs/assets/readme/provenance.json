@@ -1,0 +1,110 @@
+{
+  "description": "Scientific displays of existing observations, annotations and archived predictions; no new inference.",
+  "introduction": {
+    "observation": "20100604185114Th",
+    "image_sha256": "d7f28c9dbd92ef76208501576690b3ac84df88a29344a6ef774cd0cdf5b32172",
+    "annotation_id": 1,
+    "crop_xyxy": [
+      560,
+      110,
+      1240,
+      790
+    ],
+    "swefil_revision": "bc818c69a79266ad0fa91a539359485af57967cf",
+    "raw_image_sha256": "bee87784a82afb047d9751101b99b7b938413667db4d80d6cae7d3eacca873f7"
+  },
+  "processing": {
+    "code": "tools/submission_inference.py",
+    "code_sha256": "7c6a9d829025801482350b2f009a51a7ffb1eaa3d270cdce80a6a0691f815227",
+    "methods": [
+      "limb",
+      "preprocess_variant:clahe16"
+    ],
+    "display_range": [
+      0,
+      255
+    ]
+  },
+  "prediction_example": {
+    "observation": "20120330063134Lh",
+    "source_image_sha256": "97c65ebe3a8ef1628d2ebbba3fac9ff2895a867bda2f61f2a204877dfc64dace",
+    "crop_xyxy": [
+      384,
+      384,
+      768,
+      768
+    ],
+    "native_record_sha256": "d48bfc251618f33ae80740ae21fbd6e0942a6a0ac6fad49a4ff041d93929a43d",
+    "native_checkpoint_sha256": "ae6b209f72355fd52d2cb07182e69028e97c703a1977ad1e7b38b27cf8cebe69",
+    "yolo_csv_sha256": "2aebaff10bf14d7f18e544d6b28f730902fb2efa7a0555935f11ebf48474461f",
+    "final_csv_sha256": "0b651ca12822c740e7bdc06ea5f76e700c071a7ef660711b225760f378b5278b",
+    "native_display_threshold": 0.5,
+    "native_display_min_area": 300,
+    "visible_instances": {
+      "yolo": [
+        "20120330063134Lh_2",
+        "20120330063134Lh_5"
+      ],
+      "native": [
+        "native_0",
+        "native_2"
+      ],
+      "final": [
+        "20120330063134Lh_2",
+        "20120330063134Lh_5"
+      ]
+    },
+    "pixel_tiles": [
+      {
+        "path": "tiles/20120330063134Lh/384_384.png",
+        "sha256": "16e0a5fbd6e637e4e6833bddb05e35f9ee134934b4e2e60ac90e0050df1b3b69"
+      },
+      {
+        "path": "tiles/20120330063134Lh/384_512.png",
+        "sha256": "8d5dd26195edc6848625a9875a09662d70df3160cc8d469264ea8234a4f4c352"
+      },
+      {
+        "path": "tiles/20120330063134Lh/384_640.png",
+        "sha256": "8007168a4e697581bd072bec7107e8d71fd59d879a96b0e882dcea4d30e1c14e"
+      },
+      {
+        "path": "tiles/20120330063134Lh/512_384.png",
+        "sha256": "390331123c117e034c733456354017540dba80fa23e4c4a95ac48739aefbe54c"
+      },
+      {
+        "path": "tiles/20120330063134Lh/512_512.png",
+        "sha256": "d273338bcf69c8a139b0877cb67780ed4657a76604792699db5b7751628e9ee5"
+      },
+      {
+        "path": "tiles/20120330063134Lh/512_640.png",
+        "sha256": "1c0aba9a5333815ba80267dacce1f1fc73f595ade069a1a0e1a55d2b1f533935"
+      },
+      {
+        "path": "tiles/20120330063134Lh/640_384.png",
+        "sha256": "659ab2240eafad2f72de7be3d19a94368343409eec1d6efe71fa2244ca2dda28"
+      },
+      {
+        "path": "tiles/20120330063134Lh/640_512.png",
+        "sha256": "0ef34a34790d569e9fef5b2dbd5ef189f3f7abd76dbd932298c862b0f0e00c33"
+      },
+      {
+        "path": "tiles/20120330063134Lh/640_640.png",
+        "sha256": "6e723dbb3f21895f55d0fc4f9734d1de62c022951d46e30289f00b80171b11d9"
+      }
+    ]
+  },
+  "files": {
+    "filament_intro.jpg": {
+      "sha256": "769d97411645d4815b1cae1468fa05754ba9dab3b8ebadf7409b6e80900926fc",
+      "bytes": 185376
+    },
+    "model_predictions.jpg": {
+      "sha256": "5fe5052ce07f5550a462231a60ba3ec4f205b2a61de3e3ff8c477033f3cbf9bf",
+      "bytes": 211928
+    },
+    "preprocessing.jpg": {
+      "sha256": "2807b9e9af598ba8b06f854d68ae092e66055ee331d732d36c8f44ad65507cdb",
+      "bytes": 143377
+    }
+  }
+}
