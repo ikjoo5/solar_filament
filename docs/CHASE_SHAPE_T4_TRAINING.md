@@ -103,10 +103,24 @@ The fixed split has 91 physical images, 101 annotator groups, and 708 reference 
 
 The small result ZIP contains metrics, histories, source code, and a preview subset. Weights stay on Drive and are not embedded in the ZIP. Upload the ZIP for analysis when training completes or after a deliberate pause.
 
+### Completed 100-epoch run
+
+The uploaded `chase_shape_native_results.zip` records all 100 completed epochs. The selected checkpoint is **epoch82**, using threshold **0.35** and minimum area **300**. Independent rescoring of its nine validation CSVs reproduced the reported metrics and found no overlapping masks.
+
+| Same-runtime native evaluation | PQ | TP | FP | FN |
+|---|---:|---:|---:|---:|
+| Original best84, selected threshold0.5 / area300 | 0.429419 | 478 | 316 | 230 |
+| New epoch82, selected threshold0.35 / area300 | 0.431339 | 472 | 295 | 236 |
+| New final epoch100, threshold0.35 / area300 | 0.420170 | 462 | 320 | 246 |
+
+The selected gain is **0.001920 PQ**, with 21 fewer FP but six more FN. It does not demonstrate improved recall, and only epoch82 exceeded the original baseline among the saved evaluations. Baseline and final100 figures are recorded metrics; their prediction CSVs were absent from the uploaded ZIP. With both models decoded at threshold0.5 / area300, the new epoch82 PQ is 0.431117.
+
+These results retain limb correction, tiled probability blending, thresholding, and connected-component area filtering. They are native-only evaluations, not raw model logits or the full YOLO + native ensemble. The original production pipeline remains the reference. Use the [inference-only test notebook](CHASE_SHAPE_TEST_SUBMISSION.md) to measure the new epoch82 model on the leaderboard; no new leaderboard score has yet been reported.
+
 ## Implementation and verification scope
 
 - [Synthesis](../tools/chase_shape_synthesis.py): train-only appearance calibration, clean-background shape rendering, canonical RLE, provenance, and deterministic cache recovery.
 - [Training](../tools/chase_shape_training.py): original-recipe sampler/loss, fresh initialization, validation, and checkpoint transaction.
 - [Colab bootstrap](../tools/chase_shape_colab.py): dependency setup, persistent code snapshot, child process, and resume.
 
-Automated CPU tests cover rendering and source preservation, target/loss behavior, deterministic resume, and bootstrap integrity. They do not replace an actual T4 run on the user's complete data. No new training PQ or leaderboard gain is claimed before that execution.
+Automated CPU tests cover rendering and source preservation, target/loss behavior, deterministic resume, and bootstrap integrity. The user's uploaded T4 run supplies the training evidence above; local verification covers its metadata, source hashes, and supplied validation predictions. Weights and original images remain on the user's Drive. A leaderboard gain is not established by this validation result.

@@ -20,12 +20,15 @@ The current Colab entry point is the [notebook that loads source code from GitHu
 
 [Open in Colab](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_GitHub_Colab.ipynb) · [Next CHASE/GONG experiment design](docs/CHASE_GONG_NEXT_EXPERIMENT.md)
 
-For the new **GONG + CHASE-shape training experiment**, use the separate [T4 training notebook](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_CHASE_Shape_T4.ipynb) and [execution guide](docs/CHASE_SHAPE_T4_TRAINING.md). It starts a new ConvNeXt-Tiny U-Net from ImageNet initialization, follows the original best84 100-epoch recipe, and increases synthetic sampling to 50%. Synthetic shapes are rendered on copies of the supplied clean background. This is implemented training code, not a measured PQ improvement; the original inference entry above remains the established baseline.
+For the **GONG + CHASE-shape training experiment**, use the separate [T4 training notebook](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_CHASE_Shape_T4.ipynb) and [execution guide](docs/CHASE_SHAPE_T4_TRAINING.md). It starts a new ConvNeXt-Tiny U-Net from ImageNet initialization, follows the original best84 100-epoch recipe, and increases synthetic sampling to 50%. The completed run selected epoch 82: native-only development PQ **0.431339**, versus the logged same-runtime best84 **0.429419**. FP fell by 21 but FN rose by 6. The established full ensemble remains the submission baseline.
+
+The [new epoch-82 test notebook](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_CHASE_Test_T4.ipynb) applies that selected native-only recipe to all 180 test images. It runs inference only, resumes per image, and exports one checked submission CSV. Its public leaderboard score has not yet been measured. See the [test submission guide](docs/CHASE_SHAPE_TEST_SUBMISSION.md).
 
 ## English documentation
 
 - [Current pipeline and experiment branches](docs/CURRENT_PIPELINE.md): architecture, source map, external files, and current results.
 - [GONG + CHASE-shape T4 training](docs/CHASE_SHAPE_T4_TRAINING.md): implemented fresh-training recipe, clean-background synthesis, and automatic resume.
+- [CHASE-shape epoch-82 test submission](docs/CHASE_SHAPE_TEST_SUBMISSION.md): frozen native inference recipe and resumable Colab export.
 - [Independent CHASE evaluation](docs/CHASE_INDEPENDENT_RESULTS.md): completed model comparisons and postprocessing diagnostics.
 - [Earlier CHASE/GONG experiment design](docs/CHASE_GONG_NEXT_EXPERIMENT.md): synthesis/adaptation alternatives and proposed controls; the current training guide supersedes its execution defaults.
 - [Earlier CHASE-shape synthesis protocol](docs/CHASE_SHAPE_SYNTHESIS_PROTOCOL.md): background selection, local rendering, labels, and proposed matched controls, preserved as design history.
