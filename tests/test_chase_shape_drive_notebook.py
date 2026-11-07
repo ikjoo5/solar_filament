@@ -66,7 +66,8 @@ def cell(tmp_path,monkeypatch):
     monkeypatch.setattr(urllib.request,'urlopen',lambda *a,**kw:pytest.fail('Unexpected network access'))
     monkeypatch.setattr(subprocess,'Popen',lambda *a,**kw:pytest.fail('Unexpected inference process'))
     text=(source().replace('/content/drive/MyDrive/filament-segmentation-2026',str(base))
-          .replace('/content/solar_chase_drive_recovery.py',str(helper)))
+          .replace('/content/solar_chase_drive_recovery.py',str(helper))
+          .replace('/content/solar_chase_epoch082_recovered',str(tmp_path/'runtime/recovered')))
     return types.SimpleNamespace(base=base,helper=helper,text=text,downloads=downloads,
                                  queries=queries,mounts=mounts,auths=auths)
 
@@ -78,6 +79,7 @@ def test_not_found_is_a_normal_report_without_gpu_or_subprocess(cell,capsys):
     assert len(cell.queries)==2 and len(cell.auths)==1 and len(cell.mounts)==1
     assert 'trashed = false' in cell.queries[0]['q'] and 'trashed = true' in cell.queries[1]['q']
     assert cell.downloads==[result['report_path']] and Path(result['report_path']).is_file()
+    assert not Path(result['report_path']).is_relative_to(cell.base)
     assert 'No training or model inference was started' in capsys.readouterr().out
 
 
