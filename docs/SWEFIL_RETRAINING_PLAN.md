@@ -1,6 +1,8 @@
 # GONG + all labeled SWEFil + CHASE-shape training
 
-Status: runnable Colab implementation completed; all 250 public images and annotations verified in the cloud, with CPU contract tests passing. No new GPU training or PQ improvement is claimed. On November 7, 2026, the user explicitly requested testing the entire labeled SWEFil pool without temporal or duplicate-based admission filtering. This replaces the earlier proposal to exclude nearby observations and the historical decision to defer SWEFil.
+Status: the uploaded run completed 100 epochs and selected **epoch100, native-only development PQ 0.410866**. All nine exported validation CSVs were independently rescored and passed mask-overlap checks. This is below the historical best84 native result of 0.429419 and the previous CHASE-shape result of 0.431339. On November 7, 2026, the user explicitly requested testing the entire labeled SWEFil pool without temporal or duplicate-based admission filtering. This replaces the earlier proposal to exclude nearby observations and the historical decision to defer SWEFil.
+
+The next step is **test inference with these existing weights**, without further training: [one-cell T4 test notebook](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_SWEFil_Test_T4.ipynb) · [submission guide](SWEFIL_TEST_SUBMISSION.md). The selected recipe is threshold0.65 / minimum area300; no leaderboard score is available yet.
 
 ## Run in Colab
 

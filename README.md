@@ -88,7 +88,7 @@ The **encoder** extracts visual patterns; the **decoder** builds the pixel map. 
 
 The independently generated **YOLO + best84 baseline scored 0.39 on the public leaderboard**. Its selected development-validation PQ was **0.472593**; this repeatedly used validation set is a different measurement from the leaderboard.
 
-Current training work explores a fresh U-Net with GONG images, labeled SWEFil observations, and CHASE-derived synthetic filament shapes. The [mixed-data T4 notebook](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_SWEFil_Mixed_T4.ipynb) and [training guide](docs/SWEFIL_RETRAINING_PLAN.md) describe that experiment; its performance remains to be measured.
+Current training work explores a fresh U-Net with GONG images, labeled SWEFil observations, and CHASE-derived synthetic filament shapes. The completed mixed-data run reached native-only development PQ **0.410866**. Its [test-submission notebook](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_SWEFil_Test_T4.ipynb) evaluates the selected epoch100 model on the competition test images; its leaderboard score remains unmeasured. See the [training guide](docs/SWEFIL_RETRAINING_PLAN.md) for the experiment details.
 
 | To explore further | Start here |
 |---|---|
