@@ -8,6 +8,12 @@ This directory contains the approved competition overview artwork, a credited NA
 
 - SHA-256: `91257ae0a75a069ff444f8ab53d2577652d324e2818c2e4001a26af18ba038b5`.
 
+## Detection process
+
+`detection_process.png` is original artwork created with OpenAI image generation and approved by the repository owner for the README. The image-only sequence presents solar observations and matching enlarged regions, image preparation, foreground masks, and individual filament masks. The approved PNG is included unchanged, with a short explanation below it in the README.
+
+- SHA-256: `79b6fb2ec43f1bc8ad28fd3897f937caf25592771ebb63f821a649308738a636`.
+
 ## Color introduction: NASA solar filament eruption
 
 `solar_eruption_nasa.jpg` is the unmodified 1920 × 1080 image from [NASA SVS: August 31, 2012 Magnificent CME](https://svs.gsfc.nasa.gov/11095/).

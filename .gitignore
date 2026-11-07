@@ -44,6 +44,7 @@ logs/
 *.jpeg
 *.png
 !docs/assets/readme/competition_overview.png
+!docs/assets/readme/detection_process.png
 *.tif
 *.tiff
 *.webp

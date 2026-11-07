@@ -1,7 +1,5 @@
 # Solar Filament Segmentation 2026
 
-**Teaching a computer to find the Sun's dark ribbons — and trace each one separately.**
-
 ![Solar Filament Segmentation Challenge 2026: observe the Sun, trace filament regions, and separate each filament with its own mask.](docs/assets/readme/competition_overview.png)
 
 ## What are we looking for?
@@ -19,6 +17,10 @@ The [Solar Filament Segmentation Challenge 2026](https://www.kaggle.com/competit
 | A 2048 × 2048 GONG Hα image | A pixel mask for each individual filament | Faint branches, uneven brightness, and nearby dark features |
 
 **A mask marks which pixels belong to an object.** Different mask colors identify different filaments; the colors are labels, not the Sun's observed colors. A good prediction follows the full shape while keeping neighboring filaments separate. The challenge's **Panoptic Quality (PQ)** score measures both shape agreement and object recognition.
+
+![Solar observations and magnified filament regions progressing from image preparation to foreground masks and separately colored filament instances.](docs/assets/readme/detection_process.png)
+
+After brightness correction, YOLO and U-Net analyze the image in parallel. Their predictions are combined to trace each filament and keep neighboring objects separate.
 
 ## Model pipeline at a glance
 
