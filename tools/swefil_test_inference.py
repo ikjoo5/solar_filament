@@ -193,22 +193,24 @@ def read_image(path, checksum):
     return image
 
 
-def decode_probability(probability):
+def decode_probability(probability, recipe=None):
+    recipe = RECIPE if recipe is None else recipe
     if (not isinstance(probability,np.ndarray) or probability.shape!=(2048,2048)
             or not np.issubdtype(probability.dtype,np.floating)
             or not np.isfinite(probability).all() or probability.min()<0 or probability.max()>1):
         raise ValueError('Expected finite native2048 foreground probabilities in [0,1]')
     masks=[mu.encode(np.asfortranarray(mask.astype(np.uint8)))
-           for mask in base.iter_components(probability,RECIPE['threshold'],RECIPE['min_area'])]
+           for mask in base.iter_components(probability,recipe['threshold'],recipe['min_area'])]
     return [dict(size=[2048,2048],counts=mask['counts'].decode('ascii'))
             for mask in validate_masks(masks)]
 
 
-def verify_record(record, name, source_sha):
+def verify_record(record, name, source_sha, recipe=None):
+    recipe = RECIPE if recipe is None else recipe
     if record.get('file_name')!=name or record.get('image_sha256')!=source_sha:
         raise ValueError('Cached prediction belongs to another source image')
     masks=validate_masks(record['masks'])
-    if record.get('instances')!=len(masks) or any(int(mu.area(m))<RECIPE['min_area'] for m in masks):
+    if record.get('instances')!=len(masks) or any(int(mu.area(m))<recipe['min_area'] for m in masks):
         raise ValueError('Cached instance count/area differs')
     return masks
 
@@ -221,8 +223,29 @@ def locked(output):
         yield
 
 
-def _run_images(images, output, protocol, predictor, image_reader=read_image, provenance=None):
-    """Testable persistence engine. Public run fixes the real180/model recipe."""
+def _run_images(images, output, protocol, predictor, image_reader=read_image, provenance=None,
+                *, profile=None):
+    """Testable persistence engine with an explicit, identity-bound export profile.
+
+    The baseline defaults remain unchanged. Other reviewed entry points provide
+    their own recipe and export names instead of mutating module globals.
+    """
+    profile = dict(recipe=RECIPE, csv_name=CSV_NAME, archive_name=ARCHIVE_NAME,
+                   source_files=SOURCE_FILES) if profile is None else profile
+    if set(profile) != {'recipe', 'csv_name', 'archive_name', 'source_files'}:
+        raise ValueError('Invalid inference export profile')
+    recipe = json.loads(canonical(profile['recipe']))
+    if recipe != protocol.get('recipe'):
+        raise ValueError('Inference profile identity/checksum differs from protocol')
+    csv_name, archive_name = profile['csv_name'], profile['archive_name']
+    source_files = tuple(profile['source_files'])
+    if (not source_files or any(not isinstance(name, str) or Path(name).name != name
+                for name in (csv_name, archive_name, *source_files))
+            or not csv_name.endswith('.csv') or not archive_name.endswith('.zip')):
+        raise ValueError('Invalid inference export filenames')
+    export_profile = dict(csv_name=csv_name, archive_name=archive_name, source_files=list(source_files))
+    if 'export_profile' in protocol and protocol['export_profile'] != export_profile:
+        raise ValueError('Export profile identity/checksum differs from protocol')
     images,output=Path(images).resolve(),Path(output).resolve()
     if output==images or output in images.parents or images in output.parents:
         raise ValueError('Inference output must be separate from input images')
@@ -233,7 +256,7 @@ def _run_images(images, output, protocol, predictor, image_reader=read_image, pr
         if identity_path.exists():
             if read_envelope(identity_path,identity)!=protocol:raise ValueError('Inference protocol differs')
         else:
-            if any((output/n).exists() for n in ('predictions','latest_result.json',CSV_NAME)):
+            if any((output/n).exists() for n in ('predictions','latest_result.json',csv_name)):
                 raise ValueError('Existing inference output has no identity; use a new folder')
             envelope(identity_path,identity,protocol)
         # Mutable Drive state/path observations document this invocation, but do
@@ -249,44 +272,46 @@ def _run_images(images, output, protocol, predictor, image_reader=read_image, pr
         for index,name in enumerate(names,1):
             path=cache/(name+'.json')
             if path.exists():
-                record=read_envelope(path,identity);verify_record(record,name,sources[name]);status='cached'
+                record=read_envelope(path,identity);verify_record(record,name,sources[name],recipe);status='cached'
             else:
                 raw=image_reader(images/name,sources[name])
-                masks=decode_probability(predictor(raw))
+                masks=decode_probability(predictor(raw),recipe)
                 record=dict(file_name=name,image_sha256=sources[name],masks=masks,instances=len(masks))
-                verify_record(record,name,sources[name]);envelope(path,identity,record);status='predicted'
+                verify_record(record,name,sources[name],recipe);envelope(path,identity,record);status='predicted'
             reports.append(dict(file_name=name,image_sha256=sources[name],instances=record['instances'],
                                 cache_sha256=digest(path),completed=True))
             atomic_json(output/'progress.json',dict(status='running',identity=identity,
                 images_completed=index,images_total=len(names),last_image=name))
             print(f'Test [{index}/{len(names)}] {name}: {status}, {record["instances"]} instances',flush=True)
-        csv_path=output/CSV_NAME
+        csv_path=output/csv_name
         temporary=csv_path.with_suffix('.pending.csv');count=0
         try:
             with temporary.open('w',newline='',encoding='utf-8') as stream:
                 writer=csv.writer(stream);writer.writerow(['filament_id','segmentation_rle'])
                 for name in names:
                     record=read_envelope(cache/(name+'.json'),identity)
-                    masks=verify_record(record,name,sources[name])
+                    masks=verify_record(record,name,sources[name],recipe)
                     for number,mask in enumerate(masks,1):
                         writer.writerow([f'{Path(name).stem}_{number}',mask['counts'].decode('ascii')]);count+=1
             # Validate the written interchange format, without altering masks.
-            validate_csv(temporary,names,count)
+            validate_csv(temporary,names,count,recipe)
             temporary.replace(csv_path)
         finally:temporary.unlink(missing_ok=True)
         result=dict(status='complete',identity=identity,output_root=str(output),
             images_completed=len(names),images_total=len(names),prediction_instances=count,
             empty_images=[r['file_name'] for r in reports if not r['instances']],
-            checkpoint_epoch=100,checkpoint_sha256=protocol['checkpoint_sha256'],recipe=RECIPE,
+            checkpoint_epoch=100,checkpoint_sha256=protocol['checkpoint_sha256'],recipe=recipe,
             csv=str(csv_path),csv_sha256=digest(csv_path),elapsed_seconds=time.monotonic()-started,
             validation_reference=protocol.get('validation_reference'),
             checkpoint_selection=observation,
             scope='Native-only test predictions; no test ground truth or test PQ is available.',
             overlap_pixels=0,per_image=reports)
+        if 'checkpoint_native_validation' in protocol:
+            result['checkpoint_native_validation'] = protocol['checkpoint_native_validation']
         atomic_json(output/'submission_manifest.json',result)
         atomic_json(output/'progress.json',dict(status='complete',identity=identity,
                                                images_completed=len(names),images_total=len(names)))
-        archive=output/ARCHIVE_NAME;pending=archive.with_suffix('.pending.zip')
+        archive=output/archive_name;pending=archive.with_suffix('.pending.zip')
         try:
             with zipfile.ZipFile(pending,'w',zipfile.ZIP_DEFLATED) as z:
                 for name in ('identity.json','submission_manifest.json','progress.json',csv_path.name):
@@ -294,7 +319,7 @@ def _run_images(images, output, protocol, predictor, image_reader=read_image, pr
                 if selection_path.is_file():z.write(selection_path,selection_path.name)
                 for name in names:
                     path=cache/(name+'.json');z.write(path,'predictions/'+path.name)
-                for name in SOURCE_FILES:z.write(Path(__file__).with_name(name),'code/'+name)
+                for name in source_files:z.write(Path(__file__).with_name(name),'code/'+name)
             pending.replace(archive)
         finally:pending.unlink(missing_ok=True)
         result.update(archive=str(archive),archive_sha256=digest(archive))
@@ -302,7 +327,8 @@ def _run_images(images, output, protocol, predictor, image_reader=read_image, pr
         return result
 
 
-def validate_csv(path,names,expected_instances):
+def validate_csv(path,names,expected_instances,recipe=None):
+    recipe = RECIPE if recipe is None else recipe
     allowed={Path(n).stem for n in names};groups={};seen=set()
     with Path(path).open(newline='',encoding='utf-8') as stream:
         reader=csv.DictReader(stream)
@@ -317,7 +343,7 @@ def validate_csv(path,names,expected_instances):
             seen.add(identifier);groups.setdefault(stem,[]).append(row['segmentation_rle'])
     if len(seen)!=expected_instances:raise ValueError('Submission instance count changed')
     for masks in groups.values():
-        if any(int(mu.area(mask))<RECIPE['min_area'] for mask in validate_masks(masks)):
+        if any(int(mu.area(mask))<recipe['min_area'] for mask in validate_masks(masks)):
             raise ValueError('Submission instance is below minimum area')
 
 

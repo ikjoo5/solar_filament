@@ -76,3 +76,4 @@ notebooks/*
 !notebooks/SolarFilament_SWEFil_Mixed_T4.ipynb
 !notebooks/SolarFilament_SWEFil_Test_T4.ipynb
 !notebooks/SolarFilament_SWEFil_Ablation_T4.ipynb
+!notebooks/SolarFilament_SWEFil_TTA_Test_T4.ipynb

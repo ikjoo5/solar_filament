@@ -39,7 +39,32 @@ The historical YOLO branch already contains multi-view, tiled inference and post
 
 The selected YOLO confirmation rule improves four of five chronological diagnostic blocks. Its conditional image-bootstrap PQ-difference interval includes zero; this is not strong evidence of generalization. The blocks are diagnostics, not newly trained cross-validation folds. All images already participated in checkpoint or method selection. No test labels, public reference RLEs, or leaderboard probes were used for these CPU comparisons.
 
-## Next experiment: change inference while keeping weights fixed
+## Completed T4 inference comparisons
+
+The uploaded `swefil_inference_ablation_results.zip` contains all 36 configurations. Independent rescoring reproduced every result to floating-point precision. Its ground truth and baseline prediction CSV are byte-identical to the previous trusted exports. Recorded checkpoint, validation source and source-code hashes agree with the reviewed run at commit `d1f5bfa`. The ZIP does not contain the original images or weights, so their bytes were not rehashed locally.
+
+All four inference families reached their highest PQ at the same threshold .65 and minimum area 300:
+
+| Inference family | PQ | SQ | RQ | TP | FP | FN |
+|---|---:|---:|---:|---:|---:|---:|
+| Baseline | 0.410866 | 0.676904 | 0.606978 | 461 | 350 | 247 |
+| **Four-view TTA** | **0.420748** | **0.678422** | **0.620186** | **467** | **331** | **241** |
+| Uniform overlapping tile placement | 0.411463 | 0.676865 | 0.607895 | 462 | 350 | 246 |
+| Remove limb correction | 0.410442 | 0.678122 | 0.605263 | 460 | 352 | 248 |
+
+TTA increases PQ by **0.009881**, reducing FP by 19 and FN by six. Precision changes from 56.84% to 58.52%; recall changes from 65.11% to 65.96%. It retains 448 previous matches, gains 19 and loses 13. Among the 19 gains, fourteen already had baseline mask IoU between .25 and .5, and only four had no baseline overlap. Most improvement therefore comes from making existing partial predictions valid matches, rather than locating entirely unseen regions.
+
+Both timestamp-proximity subsets improve: near17 PQ .372678 → .399064, far74 .416925 → .424184. TTA improves four of five chronological diagnostic blocks. The conditional paired image-bootstrap interval for its PQ change is approximately [−.00196, +.02108], so this reused development set does not establish a leaderboard improvement.
+
+At TTA threshold .50 / area300, PQ is **0.420568**, TP472/FP342/FN236. It finds five more instances than threshold .65 while adding eleven FP, with an almost equal PQ. Threshold .65 remains the predefined maximum-PQ submission choice; this small difference is not strong evidence that .65 will generalize better.
+
+Applying the earlier frozen 15%-support gate with the new TTA masks gives PQ .468351 on the processed YOLO branch and .472127 on the old complete pipeline. This does not improve the prior confirmation result or the original complete pipeline, so it is not added to the next submission.
+
+The original best84 native-only historical PQ is .429419, and the original complete pipeline's PQ is .472593. The TTA improvement measures an inference change to the current model; it does not establish that the mixed-data training outperformed those models. The reported inference-loop time was 1300.6 seconds on T4; the ZIP does not establish how many caches were already present.
+
+The next controlled comparison is a **native TTA-only test submission**, retaining the reviewed epoch100 weights and all other selected settings. Compare its public LB with the current native-only **0.34** submission. [TTA test submission instructions](SWEFIL_TTA_TEST_SUBMISSION.md).
+
+## Reproduce the validation experiment
 
 [Open the single-cell T4 notebook](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_SWEFil_Ablation_T4.ipynb)
 
@@ -78,4 +103,4 @@ Default experiment folder:
 
 The experiment saves its code and settings on Drive. Probability maps are stored losslessly in compressed form and can occupy several GB; the six float32 view maps for all 91 images would occupy about 8.5 GiB before compression. The full log is `inference.log` in the experiment folder. No synthetic data are regenerated and no test CSV is produced by this notebook.
 
-The CPU experiment results above are measured. The new T4 families remain **unmeasured until this notebook runs with the user's images and weights**. Unit and CPU integration checks cover checkpoint and source verification, flip restoration, scoring, interruption recovery, complete export, and cached resume. Live Colab authentication and GPU execution have not been tested from the cloud workspace.
+Both the CPU comparisons and the uploaded T4 validation results above are measured. Unit and CPU integration checks cover checkpoint and source verification, flip restoration, scoring, interruption recovery, complete export, and cached resume. The T4 run was performed by the user in Colab; the cloud workspace independently verified its exported predictions and metrics. Test-set performance of the selected TTA recipe remains unmeasured until a new submission is evaluated.
