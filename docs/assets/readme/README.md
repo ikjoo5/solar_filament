@@ -14,6 +14,12 @@ This directory contains the approved competition overview artwork, a credited NA
 
 - SHA-256: `79b6fb2ec43f1bc8ad28fd3897f937caf25592771ebb63f821a649308738a636`.
 
+## Model pipeline
+
+`pipeline_overview.png` is original artwork created with OpenAI image generation and approved by the repository owner for the README. It presents GONG Hα input, limb correction and views/tiles, parallel YOLO26s-seg and ConvNeXt-Tiny U-Net processing, mask fusion and refinement, and non-overlapping masks exported as RLE CSV. The approved PNG is included unchanged, replacing the model-pipeline Mermaid diagram while retaining its accompanying explanation.
+
+- SHA-256: `698442a52e26077e961e06edd5a2e879ef94981852885626ee81940015862fb4`.
+
 ## Color introduction: NASA solar filament eruption
 
 `solar_eruption_nasa.jpg` is the unmodified 1920 × 1080 image from [NASA SVS: August 31, 2012 Magnificent CME](https://svs.gsfc.nasa.gov/11095/).

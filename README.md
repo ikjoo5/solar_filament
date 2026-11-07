@@ -26,15 +26,7 @@ After brightness correction, YOLO and U-Net analyze the image in parallel. Their
 
 The submitted baseline combines **YOLO26s-seg** with a **ConvNeXt-Tiny encoder and U-Net decoder**. YOLO proposes object masks; U-Net estimates filament probability at each pixel. The two networks process images independently, bringing complementary evidence to instance reconstruction. `best84` identifies the selected U-Net checkpoint.
 
-```mermaid
-flowchart LR
-    A["GONG image<br/>2048 × 2048"] --> B["Limb correction<br/>Views / tiles"]
-    B --> Y["YOLO26s-seg"]
-    B --> N["ConvNeXt-Tiny<br/>U-Net · best84"]
-    Y --> M["Mask fusion<br/>Refine / filter"]
-    N --> M
-    M --> R["Non-overlap masks<br/>RLE CSV"]
-```
+![GONG Hα images undergo limb correction and tiling, then YOLO26s-seg and ConvNeXt-Tiny U-Net process them in parallel. Their predictions are fused and refined into non-overlapping filament masks for RLE CSV export.](docs/assets/readme/pipeline_overview.png)
 
 The encoder extracts features at multiple spatial resolutions. The decoder combines these features through skip connections to recover fine spatial detail. Its foreground probability map supplies additional candidates and boundary evidence to the ensemble.
 

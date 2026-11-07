@@ -45,6 +45,7 @@ logs/
 *.png
 !docs/assets/readme/competition_overview.png
 !docs/assets/readme/detection_process.png
+!docs/assets/readme/pipeline_overview.png
 *.tif
 *.tiff
 *.webp
