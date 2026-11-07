@@ -27,6 +27,14 @@ flowchart TD
 
 YOLO and the native model make independent predictions. This architecture is not a sequence in which YOLO first generates bounding boxes and U-Net then segments only those ROIs. Detection → ROI U-Net and DETR → best84 are separate experiment branches.
 
+## Native model and context-block status
+
+The native network is a ConvNeXt-Tiny encoder followed by a U-Net decoder with skip connections. Its foreground and auxiliary spine outputs are two independent channels, not a foreground/background softmax. The foreground channel supplies the masks used by the final submission pipeline.
+
+[`PaperUNet`](../tools/paper_multiscale.py) implements a separate context variant: it replaces the encoder's deepest feature with the output of `MultiScaleResidualContext` before calling the decoder. Shallower skip features are unchanged. The [architecture walkthrough](MODEL_ARCHITECTURE.md) explains the parallel dilated convolutions, crop pooling and zero-initialized residual gate.
+
+This block was tested in the historical context experiment. It is **not active in the frozen best84 baseline or the current SWEFil mixed-training entry**. The historical results did not establish a reason to replace the submitted ensemble; see [the recorded context comparison](CONTEXT_ROUND9_RESULTS.ko.md). Adding it to a future SWEFil experiment would require a separate model configuration, checkpoint identity and evaluation.
+
 ## Source code map
 
 | Stage | Code | Role |

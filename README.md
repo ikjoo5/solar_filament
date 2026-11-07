@@ -4,7 +4,54 @@
 
 Research code for detecting and segmenting filaments in GONG Hα images and producing non-overlapping instance masks in the original 2048×2048 coordinates. The competition metric is PQ. Local evaluation follows the provided self-evaluation notebook: **strict IoU > 0.5 matching and accumulation across all annotation groups**.
 
-The current own-model submission baseline is **YOLO26s-seg + a U-Net with a ConvNeXt-Tiny encoder (`best84`)**. YOLO and U-Net predict from the images independently, then their masks are combined. This is a separate architecture from an ROI model that passes YOLO bounding boxes to U-Net.
+## Model pipeline at a glance
+
+The task is to find **each individual filament and its pixel mask** in a full-disk solar image. The current own-model submission baseline combines two models: **YOLO26s-seg** predicts instances, and **ConvNeXt-Tiny + U-Net (`best84`)** predicts a foreground probability map. Their predictions are combined to recover candidates, refine boundaries and remove duplicates.
+
+```mermaid
+flowchart TD
+    A["GONG image · 2048 × 2048"] --> B["Limb correction and model-specific views / tiles"]
+    B --> Y["YOLO26s-seg<br/>Instance mask candidates"]
+    B --> E["ConvNeXt-Tiny encoder<br/>Extract image features"]
+    E --> D["U-Net decoder<br/>Recover pixel-level detail with skip features"]
+    D --> N["Foreground probability map<br/>Stitch tiles and form candidate masks"]
+    Y --> M["Combine candidates<br/>View support · boundary refinement · duplicate filtering"]
+    N --> M
+    M --> O["Non-overlapping filament instances<br/>Original 2048 × 2048 coordinates"]
+    O --> R["RLE submission CSV"]
+```
+
+YOLO and U-Net receive image inputs independently. The currently scored pipeline does not use YOLO boxes as the input to U-Net. The native network also has an auxiliary **spine output used during training**; final inference uses its foreground output only.
+
+### Where the context block fits
+
+The implemented context experiment inserts a block **after the encoder's deepest feature map, before the U-Net decoder**. It combines nearby patterns, wider surrounding structure and a summary of the current crop. This is intended to help the model interpret faint or fragmented filaments; it is a hypothesis to evaluate, not an assumed PQ gain.
+
+```mermaid
+flowchart LR
+    I["Normalized image crop"] --> E["ConvNeXt-Tiny encoder"]
+    E --> F["Deepest feature map"]
+    F -->|"Current model: direct path"| D["U-Net decoder"]
+    F -.-> C["Context experiment<br/>Dilated convolutions + crop pooling<br/>Gated residual addition"]
+    C -.-> D
+    E -->|"Shallower skip features"| D
+    D --> P["Pixel predictions"]
+    style C fill:#fff4d6,stroke:#ad6800,stroke-width:2px,color:#111111
+```
+
+**Solid path = current native model. Dashed path = the experimental replacement for the direct deepest-feature path.** The shallower skip features still reach the decoder unchanged.
+
+| Configuration | Native network | Context block |
+|---|---|---|
+| Submitted own-model baseline, public LB **0.39** | Original `best84`, combined with YOLO | Off |
+| Current GONG/SWEFil/CHASE training, **30/60/10** during mixed epochs | Fresh ConvNeXt-Tiny U-Net; native model only | Off |
+| Historical context experiment | Original best84 warm start plus the residual context block | On; not adopted into the submitted baseline |
+
+The block starts with a zero-valued gate: **`output = input + tanh(gate) × context(input)`**. Initially it passes the original features through unchanged; training can learn how much context to add. It uses regular convolution and pooling parameters, rather than LoRA's low-rank weight updates.
+
+See the [architecture walkthrough](docs/MODEL_ARCHITECTURE.md) for the block's calculations, training behavior and experiment results. Implementation: [`MultiScaleResidualContext` and `PaperUNet`](tools/paper_multiscale.py). The new SWEFil Colab entry still follows its declared architecture; this documentation does not enable the block in that run.
+
+## Recorded results
 
 | Record | Value | Meaning |
 |---|---:|---|
@@ -30,6 +77,7 @@ The new [SWEFil mixed T4 notebook](https://colab.research.google.com/github/ikjo
 
 ## English documentation
 
+- [Model architecture and context-block placement](docs/MODEL_ARCHITECTURE.md): encoder, decoder, skip features, auxiliary spine output and optional context computation.
 - [Current pipeline and experiment branches](docs/CURRENT_PIPELINE.md): architecture, source map, external files, and current results.
 - [GONG + all SWEFil + CHASE-shape T4 training](docs/SWEFIL_RETRAINING_PLAN.md): single-cell fresh training, automatic data download and verified checkpoint resume.
 - [GONG + CHASE-shape T4 training](docs/CHASE_SHAPE_T4_TRAINING.md): implemented fresh-training recipe, clean-background synthesis, and automatic resume.
