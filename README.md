@@ -9,16 +9,13 @@ Research code for detecting and segmenting filaments in GONG Hα images and prod
 The task is to find **each individual filament and its pixel mask** in a full-disk solar image. The current own-model submission baseline combines two models: **YOLO26s-seg** predicts instances, and **ConvNeXt-Tiny + U-Net (`best84`)** predicts a foreground probability map. Their predictions are combined to recover candidates, refine boundaries and remove duplicates.
 
 ```mermaid
-flowchart TD
-    A["GONG image · 2048 × 2048"] --> B["Limb correction and model-specific views / tiles"]
-    B --> Y["YOLO26s-seg<br/>Instance mask candidates"]
-    B --> E["ConvNeXt-Tiny encoder<br/>Extract image features"]
-    E --> D["U-Net decoder<br/>Recover pixel-level detail with skip features"]
-    D --> N["Foreground probability map<br/>Stitch tiles and form candidate masks"]
-    Y --> M["Combine candidates<br/>View support · boundary refinement · duplicate filtering"]
+flowchart LR
+    A["GONG image<br/>2048 × 2048"] --> B["Limb correction<br/>Views / tiles"]
+    B --> Y["YOLO26s-seg"]
+    B --> N["ConvNeXt-Tiny<br/>U-Net · best84"]
+    Y --> M["Mask fusion<br/>Refine / filter"]
     N --> M
-    M --> O["Non-overlapping filament instances<br/>Original 2048 × 2048 coordinates"]
-    O --> R["RLE submission CSV"]
+    M --> R["Non-overlap masks<br/>RLE CSV"]
 ```
 
 YOLO and U-Net receive image inputs independently. The currently scored pipeline does not use YOLO boxes as the input to U-Net. The native network also has an auxiliary **spine output used during training**; final inference uses its foreground output only.
