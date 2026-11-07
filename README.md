@@ -80,6 +80,36 @@ The CHASE-shape experiment creates three non-overlapping insertions per image. R
 
 [Synthesis method and training recipe →](docs/CHASE_SHAPE_T4_TRAINING.md)
 
+## Evaluation
+
+**Panoptic Quality (PQ)** evaluates both the accuracy of filament shapes and the detection of individual filaments. Higher scores indicate better performance.
+
+$$
+\mathrm{PQ} =
+\frac{
+\displaystyle\sum_{(p,g)\in\mathrm{TP}}\mathrm{IoU}(p,g)
+}{
+|\mathrm{TP}|+\frac{1}{2}|\mathrm{FP}|+\frac{1}{2}|\mathrm{FN}|
+}
+$$
+
+**IoU** measures the overlapping area divided by the union of two masks. A prediction matches a reference mask when **IoU > 0.5**.
+
+- **TP:** correctly matched filaments
+- **FP:** false detections
+- **FN:** missed filaments
+
+| Method | Validation PQ ↑ |
+|---|---:|
+| ConvNeXt-Tiny U-Net | 0.4294 |
+| U-Net + context block | 0.4332 |
+| U-Net + CHASE-shape synthesis | 0.4313 |
+| U-Net with GONG / SWEFil / CHASE-shape training | 0.4109 |
+| Mixed-data U-Net + 4-view TTA | 0.4207 |
+| **YOLO26s-seg + U-Net ensemble** | **0.4726** |
+
+*Validation scores are measured on the fixed 91-image development set.*
+
 ## Explore the project
 
 | I want to… | Start here |
