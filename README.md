@@ -26,9 +26,12 @@ The [new epoch-82 test notebook](https://colab.research.google.com/github/ikjoo5
 
 If that project-folder search finds no checkpoint, the [Drive recovery notebook](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_CHASE_Drive_Recovery.ipynb) also checks accessible active and trashed candidates through the Google Drive API. Only a verified copy is passed to inference; a missing match produces a report without launching training.
 
+The new [SWEFil mixed T4 notebook](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_SWEFil_Mixed_T4.ipynb) trains a fresh native model for 100 epochs with **all 250 labeled SWEFil observations**. During mixed epochs, the requested sampler is **GONG 30% / SWEFil 60% / CHASE-shape 10%**, with no temporal admission filter. The [execution guide](docs/SWEFIL_RETRAINING_PLAN.md) covers data, validation diagnostics and server-verified Drive checkpoints. Actual public data preparation and CPU checks passed; GPU training and PQ gains remain unmeasured.
+
 ## English documentation
 
 - [Current pipeline and experiment branches](docs/CURRENT_PIPELINE.md): architecture, source map, external files, and current results.
+- [GONG + all SWEFil + CHASE-shape T4 training](docs/SWEFIL_RETRAINING_PLAN.md): single-cell fresh training, automatic data download and verified checkpoint resume.
 - [GONG + CHASE-shape T4 training](docs/CHASE_SHAPE_T4_TRAINING.md): implemented fresh-training recipe, clean-background synthesis, and automatic resume.
 - [CHASE-shape epoch-82 test submission](docs/CHASE_SHAPE_TEST_SUBMISSION.md): frozen native inference recipe and resumable Colab export.
 - [Independent CHASE evaluation](docs/CHASE_INDEPENDENT_RESULTS.md): completed model comparisons and postprocessing diagnostics.
@@ -148,6 +151,6 @@ GitHub Actions is configured to run the same check list. This core suite does no
 - 5-fold OOF consists only of predictions from models that were not trained on the evaluated image. Do not insert `best84` or weights trained on a different fold into a new OOF evaluation.
 - Synthetic donors, backgrounds, and image statistics come only from training data. Do not use validation/test data as material for synthetic training samples.
 - Record SQ/RQ and TP/FP/FN alongside PQ. Distinguish improvements on repeatedly used validation/OOF data from actual LB improvements.
-- CHASE remains a research direction. The CHASE-only 60-epoch weights do not replace the current baseline. GONG mixing, image adaptation, and shape synthesis are separate experiments; SWEFFI is reserved for a later stage.
-- The first synthesis pilot starts both the GONG-only continued-training control and the GONG + CHASE-shape synthesis branch from the same original GONG checkpoint, with matched update budgets and evaluation rules. The shape renderer still needs implementation; no improvement is assumed.
+- CHASE remains a research direction. The CHASE-only 60-epoch weights do not replace the current baseline. The user's later request brings all labeled SWEFil observations into the new mixed training run; see the declared sampling and validation scope above.
+- The completed CHASE-shape run used fresh ImageNet initialization and a 50% synthetic share. Its native-only results and limitations are recorded in the training guide. The earlier continuation/control pilot was a historical proposal, not the execution that produced those results.
 - Later matched comparisons may train new models from the same generic pretrained weights. This is distinct from random initialization and from continuing the solar-specific `best84` checkpoint. Record the initialization source and keep it identical between compared branches.

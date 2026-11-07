@@ -31,6 +31,10 @@ TESTS = (
     'tests/test_chase_shape_checkpoint_recovery.py',
     'tests/test_chase_shape_drive_recovery.py',
     'tests/test_chase_shape_drive_notebook.py',
+    'tests/test_swefil_training_data.py',
+    'tests/test_swefil_mixed_training.py',
+    'tests/test_verified_drive_checkpoints.py',
+    'tests/test_swefil_mixed_colab.py',
 )
 
 
@@ -42,6 +46,7 @@ def main():
     required.append(ROOT / 'notebooks/SolarFilament_CHASE_Cache_Backup.ipynb')
     required.append(ROOT / 'notebooks/SolarFilament_CHASE_Test_T4.ipynb')
     required.append(ROOT / 'notebooks/SolarFilament_CHASE_Drive_Recovery.ipynb')
+    required.append(ROOT / 'notebooks/SolarFilament_SWEFil_Mixed_T4.ipynb')
     missing = [str(path.relative_to(ROOT)) for path in required if not path.is_file()]
     if missing:
         raise SystemExit('Incomplete code checkout: ' + ', '.join(missing))

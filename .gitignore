@@ -65,3 +65,4 @@ notebooks/*
 !notebooks/SolarFilament_CHASE_Cache_Backup.ipynb
 !notebooks/SolarFilament_CHASE_Test_T4.ipynb
 !notebooks/SolarFilament_CHASE_Drive_Recovery.ipynb
+!notebooks/SolarFilament_SWEFil_Mixed_T4.ipynb
