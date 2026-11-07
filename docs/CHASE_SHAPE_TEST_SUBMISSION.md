@@ -36,10 +36,20 @@ The final epoch-100 checkpoint had lower development PQ (0.420170) and is not se
     train/state.json
     train/best_epoch.json
     train/checkpoints/best_epoch082.pt
-  submissions/chase_shape_epoch082_native_t4_v1/
+  submissions/chase_shape_epoch082_native_t4_recovery_v2/
 ```
 
 The worker verifies the selected model's identity/checksum and required inference-helper source hashes. It checks that test filenames match the previously supplied complete 180-image inventory using a digest of the sorted names; no private filename list is embedded in the notebook. Image hashes bind the prediction cache to actual input bytes.
+
+## Recovering the reviewed checkpoint from an older training state
+
+The uploaded completed-run archive records epoch100 with best epoch82/PQ0.431339. A later read of the user's Drive returned epoch51 with best epoch42/PQ0.409225. That latter score exactly matches epoch42 in the completed history. The shared training identity describes the training protocol; it does not prove that two folders or mounted views contain the same checkpoint state. The available evidence does not establish whether the difference came from an old mounted view, another copy, or a changed training folder.
+
+The updated notebook refreshes the Drive mount and searches the configured project directory for the reviewed epoch82 checkpoint. Search checks the actual file SHA-256, rather than selecting a filename or a newer modification time. A verified match is passed explicitly to the inference worker. The worker checks the checkpoint's training identity, epoch, model configuration and validation selection, while leaving the current `train/state.json` and other training files unchanged.
+
+The recovery output has a new directory so the previous pinned launcher is preserved. If no matching checkpoint is found, the cell reports its search scope and observed training state and stops before GPU inference. It does not substitute epoch42 or begin more training. The uploaded review ZIP contains metrics and code but no model weights, so it cannot recreate a missing checkpoint. A matching original or backup weight file is required; the checkpoint path or search scope can be supplied in the notebook.
+
+`SEARCH_ROOT` and `CHECKPOINT` can be changed on retry without replacing the saved source snapshot. The selected file must still match the same reviewed SHA. Current training-state and checkpoint-location observations are saved separately in `checkpoint_selection.json`: a later view of epoch100 instead of epoch51 does not invalidate completed predictions from that same verified model.
 
 No synthesis preparation, training, train-image reading, or test-label evaluation is performed. Synthetic PNG backups do not have to be restored for this task. The model is constructed without downloading ImageNet initialization and then loaded strictly from the selected checkpoint.
 

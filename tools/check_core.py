@@ -28,6 +28,7 @@ TESTS = (
     'tests/test_chase_shape_cache.py',
     'tests/test_chase_shape_test_inference.py',
     'tests/test_chase_shape_test_colab.py',
+    'tests/test_chase_shape_checkpoint_recovery.py',
 )
 
 

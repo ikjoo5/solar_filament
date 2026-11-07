@@ -24,7 +24,7 @@ STATE_NAME = 'test_bootstrap_state.json'
 SOURCE_FILES = (
     'tools/chase_shape_test_colab.py', 'tools/chase_shape_test_inference.py',
     'tools/solar_a100_train_standalone.py', 'tools/chase_best84_training.py',
-    'tools/chase_independent_decode.py',
+    'tools/chase_independent_decode.py', 'tools/chase_shape_checkpoint_recovery.py',
 )
 BASE = Path('/content/drive/MyDrive/filament-segmentation-2026')
 
@@ -55,17 +55,21 @@ def separate(output, protected):
         raise ValueError('Inference output must be separate from training/test inputs: '+str(protected))
 
 
-def settings(training_root, test_images, output):
+def settings(training_root, test_images, output, checkpoint=None, search_root=None):
     training_root, test_images, output = map(lambda p: Path(p).resolve(),
                                             (training_root, test_images, output))
     separate(output, training_root)
     separate(output, test_images)
-    return dict(scope=SCOPE, training_root=str(training_root), test_images=str(test_images),
+    config = dict(scope=SCOPE, training_root=str(training_root), test_images=str(test_images),
                 output_root=str(output), expected_epoch=82, expected_images=180,
                 inference_only=True, native_only=True)
+    if checkpoint is not None or search_root is not None:
+        config.update(checkpoint_override=str(Path(checkpoint).absolute()) if checkpoint else None,
+                      checkpoint_search_root=str(Path(search_root).resolve()) if search_root else None)
+    return config
 
 
-def restore(output, training_root=None, test_images=None):
+def restore(output, training_root=None, test_images=None, checkpoint=None, search_root=None):
     """Restore an existing inference snapshot without touching training state."""
     output = Path(output).resolve()
     pointer = output/STATE_NAME
@@ -97,20 +101,22 @@ def restore(output, training_root=None, test_images=None):
         raise ValueError('Saved inference settings checksum differs')
     config = json.loads(config_path.read_text())
     wanted = settings(training_root or config['training_root'],
-                      test_images or config['test_images'], output)
+                      test_images or config['test_images'], output,
+                      config.get('checkpoint_override'),
+                      config.get('checkpoint_search_root'))
     if config != wanted:
         raise ValueError('Inference paths/settings changed; use the saved paths or a new output')
     return config, code, state
 
 
-def install(repository, training_root, test_images, output):
+def install(repository, training_root, test_images, output, checkpoint=None, search_root=None):
     """Pin a small complete source bundle on Drive on the first invocation."""
     repository, output = Path(repository).resolve(), Path(output).resolve()
     if (output/STATE_NAME).exists():
-        return restore(output, training_root, test_images)
+        return restore(output, training_root, test_images, checkpoint, search_root)
     if any((output/name).exists() for name in ('identity.json', 'latest_result.json', 'cache', 'train')):
         raise ValueError('Existing results lack an inference bootstrap identity; preserve them and use a new output')
-    config = settings(training_root, test_images, output)
+    config = settings(training_root, test_images, output, checkpoint, search_root)
     payloads = {}
     for name in SOURCE_FILES:
         path = repository/name
@@ -146,7 +152,7 @@ def install(repository, training_root, test_images, output):
     for path,raw in writes.items():
         if not path.exists():
             atomic_write(path,raw)
-    return restore(output, training_root, test_images)
+    return restore(output, training_root, test_images, checkpoint, search_root)
 
 
 def ensure_dependencies(output):
@@ -246,19 +252,33 @@ def checked_result(output):
     return result
 
 
-def run(training_root, test_images, output, repository=None):
+def run(training_root, test_images, output, repository=None, checkpoint=None, search_root=None):
     output = Path(output).resolve()
     if (output/STATE_NAME).is_file():
-        config,code,state = restore(output,training_root,test_images)
+        config,code,state = restore(output,training_root,test_images,checkpoint,search_root)
     else:
         repository = Path(repository).resolve() if repository else Path(__file__).resolve().parents[1]
-        config,code,state = install(repository,training_root,test_images,output)
+        config,code,state = install(repository,training_root,test_images,output,checkpoint,search_root)
     training = Path(config['training_root'])
     for name in ('train/state.json','train/config.json','train/identity.json'):
         if not (training/name).is_file():
             raise FileNotFoundError('Training metadata needed to identify best82: '+str(training/name))
     if not Path(config['test_images']).is_dir():
         raise FileNotFoundError('Original test_images directory: '+config['test_images'])
+    # Locators can change after a failed search: every result must still match
+    # the same reviewed model SHA. Training/test/output paths remain pinned.
+    explicit_checkpoint = checkpoint
+    if checkpoint is None and search_root is None:
+        explicit_checkpoint = config.get('checkpoint_override')
+    active_search_root = search_root if search_root is not None else config.get('checkpoint_search_root')
+    selected = None
+    if explicit_checkpoint is not None or active_search_root is not None:
+        spec = importlib.util.spec_from_file_location('saved_checkpoint_recovery',
+                    code/'tools/chase_shape_checkpoint_recovery.py')
+        recovery = importlib.util.module_from_spec(spec);spec.loader.exec_module(recovery)
+        selected = recovery.find_reviewed_checkpoint(
+            active_search_root or training.parent.parent, training,
+            checkpoint=explicit_checkpoint, report_path=output/'checkpoint_search.json')
     print('Inference only: native epoch82, limb-only, threshold0.35, area300, official180images.',flush=True)
     print('Saved source version:',state['version'],flush=True)
     ensure_dependencies(output)
@@ -267,6 +287,7 @@ def run(training_root, test_images, output, repository=None):
     command = [sys.executable,'-u',str(code/'tools/chase_shape_test_inference.py'),
         '--training-root',config['training_root'],'--test-images',config['test_images'],
         '--output',str(output),'--result',str(output/'latest_result.json')]
+    if selected is not None:command += ['--checkpoint',str(selected)]
     monitored(command,output/'inference.log',code/'tools',env)
     result = checked_result(output)
     print('Submission CSV:',result['csv'],flush=True)
@@ -279,12 +300,14 @@ def main():
     parser.add_argument('--training-root',type=Path,default=BASE/'fixed_split_experiments/chase_shape_best84_recipe_t4_v1')
     parser.add_argument('--test-images',type=Path,default=BASE/'MAGFiLO_1.0_Kaggle_2026/test/test_images')
     parser.add_argument('--output',type=Path,default=BASE/'submissions'/SCOPE)
+    parser.add_argument('--checkpoint',type=Path,help='Exact reviewed epoch82 weight file')
+    parser.add_argument('--search-root',type=Path,help='Read-only search root for reviewed epoch82 weights')
     args = parser.parse_args()
     def interrupt(number,frame):
         raise KeyboardInterrupt('Interrupted by signal '+str(number))
     for number in (signal.SIGINT,signal.SIGTERM):
         signal.signal(number,interrupt)
-    run(args.training_root,args.test_images,args.output)
+    run(args.training_root,args.test_images,args.output,checkpoint=args.checkpoint,search_root=args.search_root)
 
 
 if __name__ == '__main__':

@@ -95,6 +95,31 @@ def test_cache_corruption_and_changed_runtime_do_not_silently_resume(scenario):
     assert Path(result['csv']).read_bytes()==previous
 
 
+def test_resume_keeps_completed_predictions_when_drive_state_observation_changes(scenario):
+    images,output,protocol,reader,predictor=scenario
+    first=dict(selected_epoch=82,selected_sha256=protocol['checkpoint_sha256'],
+               selected_path='/drive/backup/best_epoch082.pt',training_state=dict(completed_epoch=51,best_epoch=42))
+    second=dict(first,selected_path='/drive/restored/best_epoch082.pt',
+                training_state=dict(completed_epoch=100,best_epoch=82))
+    def interrupted(name):
+        if name=='b.jpeg':raise RuntimeError('fixture interrupt')
+        return predictor(name)
+    with pytest.raises(RuntimeError,match='fixture interrupt'):
+        worker._run_images(images,output,protocol,interrupted,reader,provenance=first)
+    original_identity=(output/'identity.json').read_bytes()
+    original_prediction=(output/'predictions/a.jpeg.json').read_bytes()
+    calls=[]
+    def resumed(name):calls.append(name);return predictor(name)
+    result=worker._run_images(images,output,protocol,resumed,reader,provenance=second)
+    assert calls==['b.jpeg','c.jpeg']
+    assert (output/'identity.json').read_bytes()==original_identity
+    assert (output/'predictions/a.jpeg.json').read_bytes()==original_prediction
+    assert result['checkpoint_selection']==second
+    assert json.loads((output/'checkpoint_selection.json').read_text())==second
+    with zipfile.ZipFile(result['archive']) as archive:
+        assert json.loads(archive.read('checkpoint_selection.json'))==second
+
+
 def test_rechecks_overlap_even_if_modified_cache_envelope_is_consistent(scenario):
     images,output,protocol,reader,predictor=scenario
     worker._run_images(images,output,protocol,predictor,reader)
@@ -177,6 +202,33 @@ def test_reviewed_checkpoint_selected_without_loading_last_or_training(training)
     with pytest.raises(ValueError,match='checkpoint checksum'):worker.training_metadata(root)
 
 
+def test_recorded_reviewed_selection_passes_without_mutating_pinned_constants():
+    # Reviewed ZIP metadata, not the generated weight fixture above. This guard
+    # test does not claim that the actual checkpoint bytes are present locally.
+    recorded=dict(epoch=100,best_epoch=82,best=dict(path='checkpoints/best_epoch082.pt',
+        sha256='8ea1198734dd434c42889aee2c79928afd8eb8ce4491e826c13d07e41e03d330'))
+    worker.verify_reviewed_selection(recorded,'train/state.json')
+
+
+@pytest.mark.parametrize('changed_epoch,changed_sha',[(80,None),(82,'0'*64),(80,'0'*64)])
+def test_changed_drive_selection_reports_observed_and_expected_values(training,changed_epoch,changed_sha):
+    root,identity,checkpoint=training
+    path=root/'train/state.json'
+    state=worker.read_envelope(path,worker.TRAINING_IDENTITY)
+    original_sha=state['best']['sha256']
+    state.update(epoch=100,best_epoch=changed_epoch)
+    if changed_sha is not None:state['best']['sha256']=changed_sha
+    worker.envelope(path,worker.TRAINING_IDENTITY,state)
+    with pytest.raises(ValueError,match='Saved checkpoint selection differs') as error:
+        worker.training_metadata(root)
+    details=json.loads(str(error.value).split('\n',1)[1])
+    assert details==dict(state_path=str(path),completed_epoch=100,
+        expected_best_epoch=82,observed_best_epoch=changed_epoch,
+        observed_best_path='checkpoints/best_epoch082.pt',expected_checkpoint_sha256=original_sha,
+        observed_checkpoint_sha256=changed_sha or original_sha)
+    assert checkpoint.read_bytes()==b'Fixture checkpoint bytes, never loaded'
+
+
 def test_decoder_recipe_and_inference_helper_must_match_reviewed_run(training):
     root,identity,checkpoint=training
     path=root/'train/config.json';config=json.loads(path.read_text());config['validation_tile']=768
@@ -191,13 +243,75 @@ def test_bad_checkpoint_relative_path_is_not_loaded(training):
     with pytest.raises(ValueError,match='Unsafe checkpoint'):worker.training_metadata(root)
 
 
+@pytest.fixture
+def recovery(training,tmp_path,monkeypatch):
+    root,identity,old_checkpoint=training
+    state=dict(epoch=51,best_epoch=42,best_pq=.4092245503356435,
+               best=dict(path='checkpoints/best_epoch042.pt',sha256='9'*64))
+    worker.envelope(root/'train/state.json',worker.TRAINING_IDENTITY,state)
+    worker.atomic_json(root/'train/best_epoch.json',dict(epoch=42,best=dict(threshold=.65,min_area=300,pq=state['best_pq'])))
+    checkpoint=tmp_path/'recovered_copy/best_epoch082.pt';checkpoint.parent.mkdir()
+    payload=dict(identity=worker.TRAINING_IDENTITY,epoch=82,
+                 config=json.loads((root/'train/config.json').read_text()),
+                 validation=dict(threshold=.35,min_area=300,pq=worker.REVIEWED_PQ,tp=472,fp=295,fn=236),
+                 model_state_dict={'weight':worker.torch.ones(1)})
+    worker.torch.save(payload,checkpoint)
+    monkeypatch.setattr(worker,'CHECKPOINT_SHA',worker.digest(checkpoint))
+    return root,checkpoint,payload
+
+
+def test_exact_recovered_checkpoint_ignores_stale_best42_pointer_but_preserves_training(recovery):
+    root,checkpoint,payload=recovery
+    before={str(p.relative_to(root)):p.read_bytes() for p in root.rglob('*') if p.is_file()}
+    with pytest.raises(ValueError,match='Saved checkpoint selection differs'):
+        worker.training_metadata(root)
+    metadata=worker.training_metadata(root,checkpoint)
+    assert metadata['checkpoint']==str(checkpoint)
+    assert metadata['validation']==payload['validation']
+    selection=metadata['checkpoint_selection']
+    assert selection['mode']=='reviewed_file_override' and selection['selected_epoch']==82
+    assert selection['training_state']['completed_epoch']==51 and selection['training_state']['best_epoch']==42
+    assert selection['training_state_payload_sha256']==worker.fingerprint(worker.read_envelope(root/'train/state.json'))
+    assert 'model_state_dict' not in json.dumps(metadata) and len(json.dumps(metadata))<8000
+    assert before=={str(p.relative_to(root)):p.read_bytes() for p in root.rglob('*') if p.is_file()}
+
+
+def test_recovered_file_checksum_and_links_checked_before_torch_load(recovery,monkeypatch,tmp_path):
+    root,checkpoint,payload=recovery
+    monkeypatch.setattr(worker.torch,'load',lambda *a,**k:pytest.fail('Unverified checkpoint was loaded'))
+    link=tmp_path/'link.pt';link.symlink_to(checkpoint)
+    with pytest.raises(ValueError,match='Unsafe checkpoint link'):
+        worker.training_metadata(root,link)
+    checkpoint.write_bytes(b'a different checkpoint')
+    with pytest.raises(ValueError,match='checkpoint checksum'):
+        worker.training_metadata(root,checkpoint)
+
+
+@pytest.mark.parametrize('field,value,message',[
+    ('epoch',42,'payload differs'),('identity','another-run','payload differs'),
+    ('tile',768,'inference recipe differs'),('threshold',.65,'decoding recipe differs'),
+    ('min_area',100,'decoding recipe differs'),('pq',.4092245503356435,'validation PQ differs'),
+    ('pq',float('nan'),'validation PQ differs'),('model_state_dict',None,'no model state'),
+])
+def test_recovery_checks_payload_after_file_hash(recovery,monkeypatch,field,value,message):
+    root,checkpoint,payload=recovery
+    if field=='tile':payload['config']['validation_tile']=value
+    elif field in ('threshold','min_area','pq'):payload['validation'][field]=value
+    else:payload[field]=value
+    worker.torch.save(payload,checkpoint)
+    # Rebind the generated fixture hash to exercise payload checks independently.
+    monkeypatch.setattr(worker,'CHECKPOINT_SHA',worker.digest(checkpoint))
+    with pytest.raises(ValueError,match=message):worker.training_metadata(root,checkpoint)
+
+
 def test_model_boundary_loads_epoch82_without_pretraining_and_preprocesses_once(tmp_path,monkeypatch):
     images=tmp_path/'images';images.mkdir()
     image_path=images/'one.jpeg';cv2.imwrite(str(image_path),np.full((2048,2048),100,np.uint8))
     sources={image_path.name:worker.digest(image_path)}
     metadata=dict(config=dict(test_images=str(images)),checkpoint='reviewed-best82.pt',
-                  training_runtime=dict(device='cuda'),validation=dict(threshold=.35,min_area=300,pq=.431))
-    monkeypatch.setattr(worker,'training_metadata',lambda _:metadata)
+                  training_runtime=dict(device='cuda'),validation=dict(threshold=.35,min_area=300,pq=.431),
+                  checkpoint_selection=dict(selected_epoch=82,training_state=dict(completed_epoch=51,best_epoch=42)))
+    monkeypatch.setattr(worker,'training_metadata',lambda *_:metadata)
     monkeypatch.setattr(worker,'inventory',lambda _:sources)
     monkeypatch.setattr(worker.torch.cuda,'is_available',lambda:True)
     monkeypatch.setattr(worker,'configure_cuda',lambda:None)
@@ -230,5 +344,9 @@ def test_model_boundary_loads_epoch82_without_pretraining_and_preprocesses_once(
     result=worker.run(tmp_path/'training',None,output)
     assert calls==['load','build','state','eval','limb','infer']
     assert result['prediction_instances']==1
-    worker.run(tmp_path/'training',None,output)
+    metadata['checkpoint_selection']['training_state']=dict(completed_epoch=100,best_epoch=82)
+    resumed=worker.run(tmp_path/'training',None,output)
     assert calls==['load','build','state','eval','limb','infer']
+    assert resumed['identity']==result['identity']
+    assert resumed['checkpoint_selection']['training_state']['completed_epoch']==100
+    assert 'checkpoint_selection' not in worker.read_envelope(output/'identity.json')

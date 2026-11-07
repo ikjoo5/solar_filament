@@ -31,6 +31,7 @@ from chase_independent_decode import validate_masks
 
 VERSION = 'chase_shape_best82_native_test_v1'
 CHECKPOINT_SHA = '8ea1198734dd434c42889aee2c79928afd8eb8ce4491e826c13d07e41e03d330'
+REVIEWED_PQ = 0.4313392463203416
 TRAINING_IDENTITY = '9463860fe78c703085e279e40bf0bc950e177b9626d7e38074cbcb63b08dbc00'
 TEST_NAMES_SHA = 'f9b2272771d3f6666f6ef812f79968a27f3d448ac2f277eda46c854ad38d598f'
 EXPECTED_IMAGES = 180
@@ -80,20 +81,61 @@ def read_envelope(path, identity=None):
     return value['payload']
 
 
-def training_metadata(training_root):
+def verify_reviewed_selection(state, state_path):
+    """Show the actual committed selection before rejecting a different model."""
+    selected=state.get('best')
+    selected=selected if isinstance(selected,dict) else {}
+    if state.get('best_epoch')!=82 or selected.get('sha256')!=CHECKPOINT_SHA:
+        details=dict(state_path=str(state_path),completed_epoch=state.get('epoch'),
+            expected_best_epoch=82,observed_best_epoch=state.get('best_epoch'),
+            observed_best_path=selected.get('path'),expected_checkpoint_sha256=CHECKPOINT_SHA,
+            observed_checkpoint_sha256=selected.get('sha256'))
+        raise ValueError('Saved checkpoint selection differs from the reviewed result. '
+            'No model was loaded and no test predictions were made. '
+            'Check the current training state before selecting another checkpoint.\n'
+            +json.dumps(details,indent=2))
+
+
+def recovered_validation(checkpoint, required):
+    """Verify an exact reviewed file independently of a mutable best pointer."""
+    payload=torch.load(checkpoint,map_location='cpu',weights_only=True)
+    if not isinstance(payload,dict) or payload.get('identity')!=TRAINING_IDENTITY or payload.get('epoch')!=82:
+        raise ValueError('Recovered checkpoint payload differs from reviewed epoch82')
+    cfg=payload.get('config',{})
+    if not isinstance(cfg,dict) or any(cfg.get(k)!=v for k,v in required.items()):
+        raise ValueError('Recovered checkpoint inference recipe differs')
+    validation=payload.get('validation',{})
+    if (not isinstance(validation,dict) or validation.get('threshold')!=.35
+            or validation.get('min_area')!=300):
+        raise ValueError('Recovered checkpoint selected decoding recipe differs')
+    pq=validation.get('pq')
+    if not isinstance(pq,(float,int)) or not np.isfinite(pq) or abs(pq-REVIEWED_PQ)>1e-12:
+        raise ValueError('Recovered checkpoint validation PQ differs from the reviewed result')
+    if not isinstance(payload.get('model_state_dict'),dict):
+        raise ValueError('Recovered checkpoint has no model state')
+    # Only small provenance leaves this function; model tensors are released.
+    return dict(validation)
+
+
+def training_metadata(training_root,checkpoint_override=None):
     """Read only reviewed metadata; never execute the stored training snapshot."""
     root=Path(training_root).resolve();train=root/'train'
     identity=read_envelope(train/'identity.json',TRAINING_IDENTITY)
     if fingerprint(identity)!=TRAINING_IDENTITY:
         raise ValueError('This submission requires the reviewed CHASE-shape training run')
     state=read_envelope(train/'state.json',TRAINING_IDENTITY)
-    if state.get('best_epoch')!=82 or state.get('best',{}).get('sha256')!=CHECKPOINT_SHA:
-        raise ValueError('Expected the reviewed best_epoch082 checkpoint; refusing another model')
-    relative=state['best']['path']
-    checkpoint=(train/relative).resolve()
-    if Path(relative).is_absolute() or not checkpoint.is_relative_to(train.resolve()):
-        raise ValueError('Unsafe checkpoint path')
-    if (train/relative).is_symlink() or not checkpoint.is_file():
+    if checkpoint_override is None:
+        verify_reviewed_selection(state,train/'state.json')
+        relative=state['best']['path']
+        supplied=train/relative
+        checkpoint=supplied.resolve()
+        if Path(relative).is_absolute() or not checkpoint.is_relative_to(train.resolve()):
+            raise ValueError('Unsafe checkpoint path')
+    else:
+        supplied=Path(checkpoint_override)
+        checkpoint=supplied.resolve()
+    if supplied.is_symlink():raise ValueError('Unsafe checkpoint link: '+str(supplied))
+    if not checkpoint.is_file():
         raise FileNotFoundError('Best epoch82 weight file is missing: '+str(checkpoint))
     if digest(checkpoint)!=CHECKPOINT_SHA:
         raise ValueError('Epoch82 checkpoint checksum differs')
@@ -102,18 +144,27 @@ def training_metadata(training_root):
                   preprocessing='limb_only',overlap=.25,infer_batch=1)
     if any(cfg.get(k)!=v or identity['settings'].get(k)!=v for k,v in required.items()):
         raise ValueError('Saved training/evaluation recipe differs from reviewed native inference')
-    best=json.loads((train/'best_epoch.json').read_text())
-    if best.get('epoch')!=82 or best['best']['threshold']!=.35 or best['best']['min_area']!=300:
-        raise ValueError('Best-checkpoint selection metadata differs')
-    if abs(best['best']['pq']-state['best_pq'])>1e-12:
-        raise ValueError('Best validation metric and committed state differ')
+    if checkpoint_override is None:
+        best=json.loads((train/'best_epoch.json').read_text())
+        if best.get('epoch')!=82 or best['best']['threshold']!=.35 or best['best']['min_area']!=300:
+            raise ValueError('Best-checkpoint selection metadata differs')
+        if abs(best['best']['pq']-state['best_pq'])>1e-12:
+            raise ValueError('Best validation metric and committed state differ')
+        validation=best['best']
+    else:
+        validation=recovered_validation(checkpoint,required)
     for name in SOURCE_FILES[1:]:
         source=Path(__file__).with_name(name)
         if not source.is_file() or digest(source)!=identity['code'].get(name):
             raise ValueError('Inference helper differs from the evaluated training code: '+name)
     return dict(root=str(root),checkpoint=str(checkpoint),checkpoint_sha256=CHECKPOINT_SHA,
-                training_identity=TRAINING_IDENTITY,validation=best['best'],
-                training_runtime=identity['runtime'],config=cfg)
+                training_identity=TRAINING_IDENTITY,validation=validation,
+                training_runtime=identity['runtime'],config=cfg,
+                checkpoint_selection=dict(mode='reviewed_file_override' if checkpoint_override is not None else 'committed_best',
+                    selected_path=str(checkpoint),selected_epoch=82,selected_sha256=CHECKPOINT_SHA,
+                    training_state_payload_sha256=fingerprint(state),
+                    training_state=dict(completed_epoch=state.get('epoch'),best_epoch=state.get('best_epoch'),
+                                        best=state.get('best'),best_pq=state.get('best_pq'))))
 
 
 def inventory(images, *, expected_count=EXPECTED_IMAGES, expected_names_sha=TEST_NAMES_SHA):
@@ -184,7 +235,7 @@ def locked(output):
         yield
 
 
-def _run_images(images, output, protocol, predictor, image_reader=read_image):
+def _run_images(images, output, protocol, predictor, image_reader=read_image, provenance=None):
     """Testable persistence engine. Public run fixes the real180/model recipe."""
     images,output=Path(images).resolve(),Path(output).resolve()
     if output==images or output in images.parents or images in output.parents:
@@ -199,6 +250,12 @@ def _run_images(images, output, protocol, predictor, image_reader=read_image):
             if any((output/n).exists() for n in ('predictions','latest_result.json','submission_chase_shape_best82_native.csv')):
                 raise ValueError('Existing inference output has no identity; use a new folder')
             envelope(identity_path,identity,protocol)
+        # Mutable Drive state/path observations document this invocation, but do
+        # not alter predictions from the same verified model and image bytes.
+        selection_path=output/'checkpoint_selection.json'
+        if selection_path.is_symlink():raise ValueError('Unsafe checkpoint provenance link')
+        if provenance is not None:atomic_json(selection_path,provenance)
+        observation=json.loads(selection_path.read_text()) if selection_path.is_file() else None
         cache=output/'predictions'
         if cache.is_symlink():raise ValueError('Unsafe prediction cache directory')
         cache.mkdir(exist_ok=True)
@@ -237,6 +294,7 @@ def _run_images(images, output, protocol, predictor, image_reader=read_image):
             checkpoint_epoch=82,checkpoint_sha256=protocol['checkpoint_sha256'],recipe=RECIPE,
             csv=str(csv_path),csv_sha256=digest(csv_path),elapsed_seconds=time.monotonic()-started,
             validation_reference=protocol.get('validation_reference'),
+            checkpoint_selection=observation,
             scope='Native-only test predictions; no test ground truth or test PQ is available.',
             overlap_pixels=0,per_image=reports)
         atomic_json(output/'submission_manifest.json',result)
@@ -247,6 +305,7 @@ def _run_images(images, output, protocol, predictor, image_reader=read_image):
             with zipfile.ZipFile(pending,'w',zipfile.ZIP_DEFLATED) as z:
                 for name in ('identity.json','submission_manifest.json','progress.json',csv_path.name):
                     z.write(output/name,name)
+                if selection_path.is_file():z.write(selection_path,selection_path.name)
                 for name in names:
                     path=cache/(name+'.json');z.write(path,'predictions/'+path.name)
                 for name in SOURCE_FILES:z.write(Path(__file__).with_name(name),'code/'+name)
@@ -271,12 +330,14 @@ def validate_csv(path,names,expected_instances):
     for masks in groups.values():validate_masks(masks)
 
 
-def run(training_root,test_images,output):
-    metadata=training_metadata(training_root)
+def run(training_root,test_images,output,checkpoint_override=None):
+    metadata=training_metadata(training_root,checkpoint_override)
     images=Path(test_images or metadata['config']['test_images']).resolve()
     output=Path(output).resolve();training_root=Path(training_root).resolve()
     if output==training_root or output in training_root.parents or training_root in output.parents:
         raise ValueError('Submission output must be separate from the training directory')
+    if Path(metadata['checkpoint']).resolve().is_relative_to(output):
+        raise ValueError('Submission output must not contain the recovered checkpoint')
     sources=inventory(images)
     if not torch.cuda.is_available():raise RuntimeError('Select a Colab T4 GPU runtime for model inference')
     configure_cuda();cv2.setNumThreads(2)
@@ -306,7 +367,7 @@ def run(training_root,test_images,output):
             model=model.to(device).eval()
         return base.predict_foreground(model,base.limb(raw),device,
             tile=1024,overlap=.25,batch=1,amp_dtype=torch.float16)
-    return _run_images(images,output,protocol,predict)
+    return _run_images(images,output,protocol,predict,provenance=metadata.get('checkpoint_selection'))
 
 
 def main():
@@ -315,8 +376,10 @@ def main():
     parser.add_argument('--test-images',type=Path)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--result',type=Path)
+    parser.add_argument('--checkpoint',type=Path,
+                        help='Recover only the exact reviewed epoch82 file, independently of the current best pointer')
     args=parser.parse_args()
-    result=run(args.training_root,args.test_images,args.output)
+    result=run(args.training_root,args.test_images,args.output,args.checkpoint)
     if args.result:atomic_json(args.result,result)
     print(json.dumps({k:v for k,v in result.items() if k!='per_image'},indent=2),flush=True)
 

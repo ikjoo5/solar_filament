@@ -70,7 +70,7 @@ def test_source_bundle_survives_checkout_loss_without_touching_training(fixture)
     cfg,code,state=install(fixture)
     assert state['source_commit']==fixture.commit and not state['source_worktree_dirty']
     assert cfg['inference_only'] and cfg['native_only'] and cfg['expected_epoch']==82
-    assert len(launcher.SOURCE_FILES)==5
+    assert len(launcher.SOURCE_FILES)==6
     assert not any('synthesis' in name or 'chase_shape_training.py' in name for name in launcher.SOURCE_FILES)
     for name in launcher.SOURCE_FILES:
         assert (code/name).read_bytes()==(fixture.repository/name).read_bytes()
@@ -196,6 +196,7 @@ def test_csv_archive_hashes_and_output_paths_are_verified(fixture,tmp_path):
 
 @pytest.fixture
 def notebook(fixture,tmp_path,monkeypatch):
+    fixture.output=fixture.base/'submissions/chase_shape_epoch082_native_t4_recovery_v2'
     document=json.loads(NOTEBOOK.read_text())
     cells=[c for c in document['cells'] if c['cell_type']=='code']
     assert len(cells)==1 and not cells[0]['outputs'] and cells[0]['execution_count'] is None
@@ -207,7 +208,7 @@ def notebook(fixture,tmp_path,monkeypatch):
         .replace('https://github.com/ikjoo5/solar_filament.git',str(fixture.repository)))
     downloads=[];commands=[]
     fake=types.ModuleType('google.colab')
-    fake.drive=types.SimpleNamespace(mount=lambda *a:None)
+    fake.drive=types.SimpleNamespace(mount=lambda *a,**kw:None)
     fake.files=types.SimpleNamespace(download=lambda path:downloads.append(path))
     monkeypatch.setitem(sys.modules,'google.colab',fake)
     real_popen=subprocess.Popen
@@ -265,3 +266,93 @@ def test_notebook_relays_real_child_stdout_stderr_and_exit_status(capsys,exit_co
     output=capsys.readouterr().out
     assert 'image1/180' in output and 'visible stderr' in output
     assert namespace['process'].stdout.closed
+
+
+def test_recovery_locator_can_change_without_changing_saved_input_paths(fixture):
+    cfg,code,state=launcher.install(fixture.repository,fixture.training,fixture.images,fixture.output,
+        search_root=fixture.base)
+    assert cfg['checkpoint_search_root']==str(fixture.base)
+    assert launcher.restore(fixture.output)==(cfg,code,state)
+    assert launcher.restore(fixture.output,search_root=fixture.base/'other')==(cfg,code,state)
+    with pytest.raises(ValueError,match='paths/settings changed'):
+        launcher.restore(fixture.output,training_root=fixture.base/'other')
+
+
+def test_missing_recovery_checkpoint_stops_before_dependency_install(fixture,monkeypatch):
+    # Real stdlib helper in the saved snapshot; remaining fixture sources are never run.
+    shutil.copyfile(ROOT/'tools/chase_shape_checkpoint_recovery.py',
+                    fixture.repository/'tools/chase_shape_checkpoint_recovery.py')
+    calls=[]
+    monkeypatch.setattr(launcher,'ensure_dependencies',lambda _:calls.append('pip'))
+    monkeypatch.setattr(launcher,'monitored',lambda *a:calls.append('infer'))
+    with pytest.raises(FileNotFoundError,match='epoch82 weights were not found'):
+        launcher.run(fixture.training,fixture.images,fixture.output,
+                     repository=fixture.repository,search_root=fixture.base)
+    assert calls==[]
+    assert json.loads((fixture.output/'checkpoint_search.json').read_text())['status']=='not_found'
+
+
+def test_recovery_passes_exact_selected_path_to_engine(fixture,monkeypatch):
+    helper=fixture.repository/'tools/chase_shape_checkpoint_recovery.py'
+    weight=fixture.base/'archived/best_epoch082.pt';weight.parent.mkdir();weight.write_bytes(b'fixture')
+    helper.write_text('from pathlib import Path\ndef find_reviewed_checkpoint(*a,**kw): return Path('+repr(str(weight))+')\n')
+    monkeypatch.setattr(launcher,'ensure_dependencies',lambda _:None)
+    def child(command,*args):
+        assert command[-2:]==['--checkpoint',str(weight)]
+        write_result(fixture.output)
+    monkeypatch.setattr(launcher,'monitored',child)
+    result=launcher.run(fixture.training,fixture.images,fixture.output,
+        repository=fixture.repository,search_root=fixture.base)
+    assert result['checkpoint_epoch']==82
+
+
+def test_failed_search_can_retry_same_output_with_new_locator(fixture,monkeypatch,tmp_path):
+    helper=fixture.repository/'tools/chase_shape_checkpoint_recovery.py'
+    weight=tmp_path/'other_drive/completed/best_epoch082.pt';weight.parent.mkdir(parents=True)
+    weight.write_bytes(b'reviewed fixture')
+    content=(ROOT/'tools/chase_shape_checkpoint_recovery.py').read_text()
+    content=content.replace('8ea1198734dd434c42889aee2c79928afd8eb8ce4491e826c13d07e41e03d330',
+                            hashlib.sha256(weight.read_bytes()).hexdigest())
+    helper.write_text(content)
+    calls=[]
+    monkeypatch.setattr(launcher,'ensure_dependencies',lambda _:calls.append('pip'))
+    def child(command,*args):
+        calls.append(command)
+        assert command[-2:]==['--checkpoint',str(weight)]
+        write_result(fixture.output)
+    monkeypatch.setattr(launcher,'monitored',child)
+    with pytest.raises(FileNotFoundError):
+        launcher.run(fixture.training,fixture.images,fixture.output,
+            repository=fixture.repository,search_root=fixture.base)
+    assert calls==[]
+    saved={p:p.read_bytes() for p in (fixture.output/'code').rglob('*') if p.is_file()}
+    config_bytes=(fixture.output/'inference_launcher_config.json').read_bytes()
+    result=launcher.run(fixture.training,fixture.images,fixture.output,search_root=weight.parent)
+    assert result['images_completed']==180 and len(calls)==2
+    assert config_bytes==(fixture.output/'inference_launcher_config.json').read_bytes()
+    assert all(p.read_bytes()==raw for p,raw in saved.items())
+
+
+def test_explicit_search_clears_previously_bad_checkpoint_locator(fixture,monkeypatch,tmp_path):
+    weight=tmp_path/'completed/best_epoch082.pt';weight.parent.mkdir();weight.write_bytes(b'reviewed fixture')
+    wrong=tmp_path/'wrong.pt';wrong.write_bytes(b'other model')
+    helper=fixture.repository/'tools/chase_shape_checkpoint_recovery.py'
+    helper.write_text((ROOT/'tools/chase_shape_checkpoint_recovery.py').read_text().replace(
+        '8ea1198734dd434c42889aee2c79928afd8eb8ce4491e826c13d07e41e03d330',
+        hashlib.sha256(weight.read_bytes()).hexdigest()))
+    calls=[]
+    monkeypatch.setattr(launcher,'ensure_dependencies',lambda _:calls.append('pip'))
+    def child(command,*args):
+        assert command[-2:]==['--checkpoint',str(weight)]
+        write_result(fixture.output)
+    monkeypatch.setattr(launcher,'monitored',child)
+    with pytest.raises(ValueError,match='does not match'):
+        launcher.run(fixture.training,fixture.images,fixture.output,repository=fixture.repository,
+                     checkpoint=wrong,search_root=fixture.base)
+    assert calls==[]
+    result=launcher.run(fixture.training,fixture.images,fixture.output,checkpoint=None,
+                        search_root=weight.parent)
+    assert result['images_completed']==180 and calls==['pip']
+    # Omitting both locators deliberately restores the original saved defaults.
+    with pytest.raises(ValueError,match='does not match'):
+        launcher.run(fixture.training,fixture.images,fixture.output)
