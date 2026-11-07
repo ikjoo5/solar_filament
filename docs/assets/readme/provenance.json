@@ -95,16 +95,16 @@
   },
   "files": {
     "filament_intro.jpg": {
-      "sha256": "769d97411645d4815b1cae1468fa05754ba9dab3b8ebadf7409b6e80900926fc",
-      "bytes": 185376
+      "sha256": "bb3cd055e36d5d4e714d0daa2ff6ab0c04c8eb012ca4965b82363b0465541d05",
+      "bytes": 286513
     },
     "model_predictions.jpg": {
-      "sha256": "5fe5052ce07f5550a462231a60ba3ec4f205b2a61de3e3ff8c477033f3cbf9bf",
-      "bytes": 211928
+      "sha256": "bf26dd2fc43f5fbf14cdc91d64ab042eaaafe071c012fa7c830a870e4b866763",
+      "bytes": 288746
     },
     "preprocessing.jpg": {
-      "sha256": "2807b9e9af598ba8b06f854d68ae092e66055ee331d732d36c8f44ad65507cdb",
-      "bytes": 143377
+      "sha256": "6ca1946e2884b8d16a821e6d33c363650a223b70711c69d94867a7b3794c5982",
+      "bytes": 178723
     }
   }
 }

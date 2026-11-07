@@ -24,7 +24,7 @@ from submission_inference import limb, preprocess_variant
 SWE = '20100604185114Th'
 OBS = '20120330063134Lh'
 FINAL_SHA = '0b651ca12822c740e7bdc06ea5f76e700c071a7ef660711b225760f378b5278b'
-BG, INK, MUTED = '#f6f8fb', '#15243a', '#526175'
+BG, INK = '#ffffff', '#172432'
 TEAL, GOLD, BLUE = '#13b8a6', '#f7b343', '#53a6ef'
 plt.rcParams.update({'font.family':'DejaVu Sans','font.size':12,'text.color':INK})
 
@@ -48,13 +48,12 @@ def decode(rle):
     return result
 
 
-def canvas(title, subtitle, labels, width=13.5):
-    fig,axes=plt.subplots(1,len(labels),figsize=(width,4.75),facecolor=BG)
-    fig.subplots_adjust(left=.018,right=.982,top=.77,bottom=.085,wspace=.035)
-    fig.text(.025,.955,title,fontsize=22,fontweight='bold',va='top')
-    fig.text(.025,.865,subtitle,fontsize=11,color=MUTED,va='top')
+def canvas(labels, width=13.5):
+    """Compact scientific panels; detailed provenance lives in the asset guide."""
+    fig,axes=plt.subplots(1,len(labels),figsize=(width,4.3),facecolor=BG)
+    fig.subplots_adjust(left=.012,right=.988,top=.89,bottom=.015,wspace=.04)
     for ax,label in zip(axes,labels):
-        ax.set_title(label,fontsize=12.5,fontweight='bold',pad=10)
+        ax.set_title(label,fontsize=15,fontweight='medium',pad=12,loc='left')
         ax.set_axis_off()
     return fig,axes
 
@@ -71,7 +70,7 @@ def overlay(ax,mask,color,alpha=.32):
 
 
 def save(fig,path):
-    fig.savefig(path,dpi=120,facecolor=BG,pil_kwargs={'quality':92,'optimize':True})
+    fig.savefig(path,dpi=150,facecolor=BG,pil_kwargs={'quality':92,'optimize':True})
     plt.close(fig)
 
 
@@ -96,21 +95,15 @@ def build(inputs,output):
     target=decode(annotation['segmentation'])
     # Fixed editorial crop: selected for a visible long filament, not a model score.
     x0,y0,x1,y1=560,110,1240,790
-    fig,axes=canvas('What is a solar filament?',
-        'Dark, thread-like structures seen against the bright solar disk.',
-        ['The whole Sun','A closer look','The region to outline'])
+    fig,axes=canvas(['(a) GONG Hα observation','(b) Filament morphology','(c) Reference mask'])
     show(axes[0],image);axes[0].add_patch(Rectangle((x0,y0),x1-x0,y1-y0,fill=False,edgecolor=TEAL,linewidth=2))
     crop=image[y0:y1,x0:x1];show(axes[1],crop);show(axes[2],crop)
     overlay(axes[2],target[y0:y1,x0:x1],TEAL)
-    fig.text(.025,.025,'SWEFil / GONG observation · teal = human reference annotation, not a model prediction.',fontsize=10,color=MUTED)
     save(fig,output/'filament_intro.jpg')
 
     raw=gray(paths['swefil_raw']);corrected=limb(raw);contrast=preprocess_variant(corrected,'clahe16')
-    fig,axes=canvas('Prepare the image before looking for filaments',
-        'The same observation and display range in every panel.',
-        ['Original observation','Balance center-to-edge brightness','One extra YOLO contrast view'])
+    fig,axes=canvas(['(a) Original intensity','(b) Radial correction','(c) Local contrast · YOLO'])
     for ax,value in zip(axes,(raw,corrected,contrast)): show(ax,value)
-    fig.text(.025,.025,'Actual preprocessing from this repository · the extra contrast view is used by YOLO, not by both models.',fontsize=10,color=MUTED)
     save(fig,output/'preprocessing.jpg')
 
     tiles=json.loads((paths['pixel_tiles']/'manifest.json').read_text())
@@ -144,9 +137,7 @@ def build(inputs,output):
     foreground=[('native_'+str(i),decode(a['rle'])) for i,a in enumerate(native['tta']['components']['0.5']) if a['area']>=300]
     final=csv_masks(paths['final_csv'])
     selected=[]
-    fig,axes=canvas('Two independent models, one final set of masks',
-        'Real saved predictions for the same validation crop. Each final color marks one predicted filament.',
-        ['Input crop','YOLO candidates','U-Net candidates','Final combined masks'],width=14.8)
+    fig,axes=canvas(['(a) Hα crop','(b) YOLO26s-seg','(c) ConvNeXt–U-Net','(d) Fused instances'],width=15.8)
     for ax in axes: show(ax,patch)
     for ax,masks,palette in ((axes[1],yolo,[BLUE]),(axes[2],foreground,[GOLD]),(axes[3],final,[TEAL,'#ed7ba7','#a99bf6'])):
         visible=[]
@@ -157,7 +148,6 @@ def build(inputs,output):
                 overlay(ax,cropped,color)
                 visible.append(name)
         selected.append(visible)
-    fig.text(.025,.025,'GONG / MAGFiLO validation observation · 2012-03-30 · limb-corrected pixels · archived YOLO + best84 baseline.',fontsize=10,color=MUTED)
     save(fig,output/'model_predictions.jpg')
     provenance=dict(
         description='Scientific displays of existing observations, annotations and archived predictions; no new inference.',

@@ -1,24 +1,20 @@
 # Solar Filament Segmentation 2026
 
-Finding and outlining dark, thread-like structures on the Sun with deep learning.
+**Instance segmentation of solar filaments in full-disk Hα observations.**
 
-[Competition](https://www.kaggle.com/competitions/filament-segmentation-2026) · [Run in Colab](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_GitHub_Colab.ipynb) · [Technical guide](docs/TECHNICAL_GUIDE.md) · [Korean documentation](README.ko.md)
+A complementary detection and segmentation pipeline for the [2026 Solar Filament Segmentation Challenge](https://www.kaggle.com/competitions/filament-segmentation-2026).
 
-## What are we looking for?
+## Scientific context
 
-**Solar filaments** are clouds of relatively cool, dense plasma held above the Sun's surface by magnetic fields. Against the bright solar disk, they appear as dark threads or ribbons. These images come from **GONG**, a network of solar observatories, and show the Sun in **Hα**: a wavelength of light associated with hydrogen.
+Solar filaments are relatively cool, dense plasma structures suspended in the solar atmosphere by magnetic fields. Observed against the solar disk in the hydrogen **Hα line at 656.28 nm**, they appear as dark, elongated features. Their irregular boundaries, fragmented appearance, and proximity to other dark structures make automated identification challenging.
 
-![Full solar disk, a close-up of a dark filament, and its human-labeled outline.](docs/assets/readme/filament_intro.jpg)
+![Full-disk Hα observation, filament detail, and filament outline.](docs/assets/readme/filament_intro.jpg)
 
-*The teal outline is a human annotation from the public SWEFil dataset. It illustrates the region a model should learn to identify.*
-
-The [2026 Kaggle competition](https://www.kaggle.com/competitions/filament-segmentation-2026) asks us to find **each individual filament and outline its pixels** in 2048 × 2048 solar images. A pixel-by-pixel map of the selected region is called a **mask**. Faint structures, uneven brightness, and nearby dark features such as sunspots make the task difficult.
-
-The score, **Panoptic Quality (PQ)**, rewards both finding the right objects and tracing their shapes accurately. Missing a filament, inventing one, or combining separate filaments can all lower the score.
+This project identifies **individual filaments and their pixel boundaries** in 2048 × 2048 observations from the Global Oscillation Network Group (**GONG**). The objective is to preserve faint structure while distinguishing neighboring objects across the full solar disk.
 
 ## Model pipeline at a glance
 
-Our submitted baseline combines **two independent models**. YOLO identifies individual filament candidates; a ConvNeXt-Tiny U-Net estimates which pixels belong to filaments. `best84` is the name of our selected U-Net checkpoint.
+The submitted baseline combines **YOLO26s-seg** with a **ConvNeXt-Tiny encoder and U-Net decoder**. YOLO proposes object masks; U-Net estimates filament probability at each pixel. The two networks process images independently, bringing complementary evidence to instance reconstruction. `best84` identifies the selected U-Net checkpoint.
 
 ```mermaid
 flowchart LR
@@ -30,43 +26,27 @@ flowchart LR
     M --> R["Non-overlap masks<br/>RLE CSV"]
 ```
 
-Both models look at image inputs. Their predictions meet at the mask-combination stage.
+The encoder extracts features at multiple spatial resolutions. The decoder combines these features through skip connections to recover fine spatial detail. Its foreground probability map supplies additional candidates and boundary evidence to the ensemble.
 
-## From a solar image to separate filament masks
+## Image formation and preprocessing
 
-### 1. Make faint structures easier to see
+Solar **limb darkening** produces a systematic brightness decrease from the disk center toward its edge. Limb correction reduces this radial variation, followed by normalization appropriate to each model.
 
-The Sun's disk naturally looks darker toward its edge. **Limb-darkening correction** balances this center-to-edge brightness. The models also receive normalized pixel values so the input matches their training setup.
+![Hα observation before correction, after limb correction, and with local contrast enhancement.](docs/assets/readme/preprocessing.jpg)
 
-![The same solar observation before processing, after limb-darkening correction, and with an extra contrast view for YOLO.](docs/assets/readme/preprocessing.jpg)
+The YOLO branch evaluates additional contrast and filtering views, including **contrast-limited adaptive histogram equalization (CLAHE)**. Overlapping tiles retain small structures at full resolution, while geometric views sample different orientations. The U-Net branch uses limb-corrected 1024-pixel tiles with 25% overlap and four-orientation inference.
 
-The YOLO branch also examines several contrast and filtering variants, including **CLAHE**, which adjusts contrast within small image regions. The figure shows one such view. The U-Net branch uses its own limb-corrected, normalized input.
+## Instance reconstruction
 
-### 2. Look closely with two models
+Predictions are mapped back to the original image coordinates. Agreement across views supports candidate selection; U-Net probabilities guide conditional additions and boundary refinement. Duplicate removal, candidate filtering, and overlap resolution produce a set of distinct filament instances.
 
-Large images are examined in **overlapping crops** to retain small details. Flipped views let the models look at the same structure in different orientations; their predictions are then mapped back to the original image.
+![Input crop, YOLO candidates, U-Net candidates, and combined filament instances.](docs/assets/readme/model_predictions.jpg)
 
-- **YOLO26s-seg:** proposes separate objects and their masks.
-- **ConvNeXt-Tiny + U-Net:** recognizes patterns and turns them into a pixel-by-pixel filament map. This provides additional candidates and evidence about boundaries.
-
-![One validation crop shown as input, with YOLO candidates, with U-Net candidates, and with the final combined masks.](docs/assets/readme/model_predictions.jpg)
-
-*These are actual saved predictions from the YOLO + best84 validation pipeline. Blue shows YOLO candidates, gold shows U-Net candidates, and each final color marks a separate predicted filament. This example illustrates how the branches can disagree about boundaries; it is not a new evaluation run.*
-
-### 3. Combine the evidence and clean up
-
-Postprocessing turns the model outputs into the final set of objects:
-
-- **Check agreement across views:** use repeated detections to assess candidate reliability.
-- **Combine and refine:** add supported candidates and selectively adjust boundaries using U-Net evidence.
-- **Remove duplicates and weak candidates:** reduce repeated detections and false alarms.
-- **Resolve overlaps:** assign overlapping pixels so the submitted masks remain separate.
-
-The masks are returned to the original image coordinates and encoded as **RLE**—a compact way to store mask pixels as text—for the submission CSV. The [pipeline guide](docs/CURRENT_PIPELINE.md) documents the exact recipe.
+Each output pixel belongs to at most one instance. Final masks retain the original 2048 × 2048 coordinate system and are stored as compressed COCO run-length encoding (**RLE**) in the submission CSV.
 
 ## Where the context block fits
 
-A faint filament may be easier to recognize when the model considers its surroundings. Our **context-block experiment** adds that wider view inside U-Net, between its encoder and decoder:
+The optional context block is **experimental and disabled in the submitted baseline**. It operates on the encoder's deepest feature map, combining parallel dilated convolutions with a pooled summary of the current crop. A learned residual gate controls the contribution of this wider context; shallower skip features preserve local detail.
 
 ```mermaid
 flowchart LR
@@ -80,27 +60,29 @@ flowchart LR
     style C fill:#fff4d6,stroke:#ad6800,stroke-width:2px,color:#111111
 ```
 
-The **encoder** extracts visual patterns; the **decoder** builds the pixel map. The optional block mixes nearby detail, wider surroundings, and a summary of the crop. A learned gate controls how much of this extra information is added.
+## Evaluation
 
-**The solid path is the submitted baseline. The dashed path is the experimental context block.** The block is implemented but is not enabled in the submitted best84 pipeline or the current mixed-data training run. See the [architecture walkthrough](docs/MODEL_ARCHITECTURE.md) for its calculations and results.
+**Panoptic Quality (PQ)** measures both instance recognition and boundary agreement:
 
-## Current progress and getting started
+$$
+\mathrm{PQ} = \frac{\sum_{(p,g)\in\mathrm{TP}} \operatorname{IoU}(p,g)}{|\mathrm{TP}| + \tfrac{1}{2}|\mathrm{FP}| + \tfrac{1}{2}|\mathrm{FN}|}
+$$
 
-The independently generated **YOLO + best84 baseline scored 0.39 on the public leaderboard**. Its selected development-validation PQ was **0.472593**; this repeatedly used validation set is a different measurement from the leaderboard.
+Predicted and annotated masks match when their intersection over union (**IoU**) exceeds 0.5. Unmatched predictions and annotations contribute false positives and false negatives. Evaluation accumulates matched IoU and object counts across annotator–image groups.
 
-Current training work explores a fresh U-Net with GONG images, labeled SWEFil observations, and CHASE-derived synthetic filament shapes. The completed mixed-data run reached native-only development PQ **0.410866**. Its [test-submission notebook](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_SWEFil_Test_T4.ipynb) evaluates the selected epoch100 model on the competition test images; its leaderboard score remains unmeasured. See the [training guide](docs/SWEFIL_RETRAINING_PLAN.md) for the experiment details.
+| Submitted YOLO + best84 ensemble | PQ |
+|---|---:|
+| Selected development validation | **0.472593** |
+| Public leaderboard | **0.39** |
 
-| To explore further | Start here |
-|---|---|
-| Run the submitted baseline | [Colab notebook](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_GitHub_Colab.ipynb) |
-| Install, evaluate, or create a submission | [Technical guide](docs/TECHNICAL_GUIDE.md) |
-| Understand the models and context block | [Architecture walkthrough](docs/MODEL_ARCHITECTURE.md) |
-| Follow experiment history and recorded scores | [Current pipeline](docs/CURRENT_PIPELINE.md) · [Results](docs/TECHNICAL_GUIDE.md#recorded-results) |
+Development validation was used repeatedly for model and parameter selection. The public leaderboard is a separate measurement on the competition test set.
 
-Code and small explanatory figures are included here. Full datasets, trained weights, and prediction exports are stored separately; the execution guides explain which files are needed.
+## References
 
-## Images and acknowledgments
+- Ronneberger, Fischer & Brox (2015). [U-Net: Convolutional Networks for Biomedical Image Segmentation](https://arxiv.org/abs/1505.04597).
+- Liu et al. (2022). [A ConvNet for the 2020s](https://arxiv.org/abs/2201.03545).
+- Kirillov et al. (2019). [Panoptic Segmentation](https://arxiv.org/abs/1801.00868).
 
-The introduction uses a GONG observation and human annotation from **SWEFil**, by Antonio Reche and Consuelo Cid ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)). The prediction example uses a crop from this project's GONG/MAGFiLO validation data and its archived model outputs. Solar observations are credited to **GONG / NSO Integrated Synoptic Program**. [Image sources, processing details, and reproduction instructions](docs/assets/readme/README.md).
+[Architecture](docs/MODEL_ARCHITECTURE.md) · [Methods and recorded results](docs/CURRENT_PIPELINE.md) · [Technical reference](docs/TECHNICAL_GUIDE.md)
 
-The visual introduction was inspired by [Agnuxo1's competition repository](https://github.com/Agnuxo1/solar-filament-segmentation-2026). The figures shown here were created for this project from the sources above.
+GONG / NSO solar observations. [Figure sources and credits](docs/assets/readme/README.md).
