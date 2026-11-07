@@ -51,6 +51,16 @@ The recovery output has a new directory so the previous pinned launcher is prese
 
 `SEARCH_ROOT` and `CHECKPOINT` can be changed on retry without replacing the saved source snapshot. The selected file must still match the same reviewed SHA. Current training-state and checkpoint-location observations are saved separately in `checkpoint_selection.json`: a later view of epoch100 instead of epoch51 does not invalidate completed predictions from that same verified model.
 
+### If the project-folder search returns `not_found`
+
+The mounted-folder search does not inspect Drive trash. Use the separate [Drive recovery Colab notebook](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_CHASE_Drive_Recovery.ipynb). It authenticates with Google, lists accessible active and trashed checkpoint candidates without a parent-folder constraint, and downloads candidates only to verify the reviewed SHA. Its filename-prefix search includes the original epoch82 filename but cannot establish the absence of arbitrarily renamed or permanently deleted copies. API permission failures and search limits are reported separately from a completed search without a match.
+
+A verified copy is saved under `recovered_checkpoints/chase_shape_epoch082/`, outside the original trainer's checkpoint directory. The notebook then passes that copy to the existing saved inference launcher. It performs no Drive API update, delete, move, or untrash operation. If a trashed candidate cannot be downloaded, its link is included for manual inspection/restoration. A missing match produces `drive_recovery_report.json` and stops normally without attempting another model.
+
+The training code retains only the current best and last checkpoint generations after each epoch. An older resumed state or a concurrent writer could consequently remove later files in the same checkpoint folder; the available logs do not establish that this happened here. Do not edit `state.json` to claim epoch100 or start training simply to bypass the inference guard.
+
+If the reviewed weights cannot be recovered, continuing training is a separate next step. It requires both current `last_epoch051.pt` and `best_epoch042.pt` to exist and match their recorded hashes. The existing training runner can restore model/optimizer/scheduler/scaler/RNG/history and continue at epoch52 through100, keeping the original schedule. Preserve the available weights first. Such a continuation is a new result: identical epoch82 weights or PQ0.431339 are not guaranteed, and its selected checkpoint must be evaluated and registered before a submission.
+
 No synthesis preparation, training, train-image reading, or test-label evaluation is performed. Synthetic PNG backups do not have to be restored for this task. The model is constructed without downloading ImageNet initialization and then loaded strictly from the selected checkpoint.
 
 ## Resume and outputs

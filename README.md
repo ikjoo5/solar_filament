@@ -24,6 +24,8 @@ For the **GONG + CHASE-shape training experiment**, use the separate [T4 trainin
 
 The [new epoch-82 test notebook](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_CHASE_Test_T4.ipynb) applies that selected native-only recipe to all 180 test images. It runs inference only, resumes per image, and exports one checked submission CSV. The recovery entry refreshes Drive and locates the exact reviewed weight file if the training folder shows an older best-checkpoint pointer; it preserves that folder and the previous inference output. Its public leaderboard score has not yet been measured. See the [test submission guide](docs/CHASE_SHAPE_TEST_SUBMISSION.md).
 
+If that project-folder search finds no checkpoint, the [Drive recovery notebook](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_CHASE_Drive_Recovery.ipynb) also checks accessible active and trashed candidates through the Google Drive API. Only a verified copy is passed to inference; a missing match produces a report without launching training.
+
 ## English documentation
 
 - [Current pipeline and experiment branches](docs/CURRENT_PIPELINE.md): architecture, source map, external files, and current results.
