@@ -1,130 +1,104 @@
 # Solar Filament Segmentation 2026
 
-GONG Hα 영상의 필라멘트를 검출·분할하고, 원본 2048×2048 좌표의 겹치지 않는 인스턴스 마스크를 제출하는 연구 코드입니다. 대회 지표는 PQ이며, 로컬 평가는 제공된 self-evaluation notebook의 **strict IoU > 0.5, 전체 주석 그룹 누적 방식**을 따릅니다.
+**태양 영상 속 검은 리본을 찾아, 하나씩 구분하고 모양을 그리는 AI.**
 
-현재 자체 제출 기준선은 **YOLO26s-seg + ConvNeXt-Tiny encoder U-Net(`best84`)**입니다. YOLO와 U-Net이 각각 영상에서 예측한 뒤 마스크를 결합합니다. YOLO 박스를 U-Net에 전달하는 ROI 모델과는 별도 구성입니다.
+[English](README.md) · 한국어 · [Kaggle 대회](https://www.kaggle.com/competitions/filament-segmentation-2026) · [코드 실행하기](docs/TECHNICAL_GUIDE.ko.md)
 
-| 기록 | 값 | 의미 |
-|---|---:|---|
-| 자체 기준선 public LB | **0.39** | 사용자가 실제 제출에서 확인한 표시 점수 |
-| 선택 당시 고정 검증 PQ | **0.472593** | 반복 사용한 개발 validation 결과 |
-| CHASE 비교 실행의 기존 복합모델 PQ | **0.471930** | 해당 실행에서 다시 계산한 대조군 |
-| 공개 예측을 추가·교체한 혼합 CSV public LB | **0.45** | 자체 모델이 독립적으로 생성한 성능과 구분 |
-| 외부 공개 CSV public LB | **0.55** | 참조 예측이며 test 정답이 아님 |
+![NASA SDO가 관측한 태양의 긴 필라멘트 분출. 붉고 노란 태양 대기 위로 리본 같은 구조가 뻗어 있다.](docs/assets/readme/solar_eruption_nasa.jpg)
 
-전체 구조와 최신 실험 상태는 [현재 파이프라인](docs/CURRENT_PIPELINE.ko.md)을 먼저 읽으세요. `docs/`의 다른 문서는 각 실험 당시의 기록이므로, 과거 문서의 “아직 실행하지 않음”이나 점수 표현을 최신 상태로 해석하지 않습니다.
+*극자외선으로 관측한 태양 필라멘트의 분출 모습. 출처: [NASA/Goddard Space Flight Center](https://svs.gsfc.nasa.gov/11095/). 대회에서는 태양을 다른 파장으로 촬영한 흑백 Hα 관측 영상을 사용합니다.*
 
-Colab의 현재 시작점은 [GitHub 소스를 불러오는 실행 노트북](notebooks/SolarFilament_GitHub_Colab.ipynb)입니다. 코드 전체를 압축 문자열로 복사하는 대신 저장소의 버전을 고정해 실행하며, 데이터와 가중치는 본인의 Drive에서 읽습니다.
+## 무엇을 찾는 프로젝트인가요?
 
-[Colab에서 열기](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_GitHub_Colab.ipynb) · [다음 CHASE/GONG 실험의 비교 설계](docs/CHASE_GONG_NEXT_EXPERIMENT.ko.md)
+**태양 필라멘트**는 자기장의 힘으로 태양 대기에 떠 있는, 길고 비교적 차가우며 밀도 높은 플라즈마 구조입니다. 태양 대기의 수소를 관찰하는 **Hα** 파장으로 보면 밝은 태양 원반 위에 검은 리본처럼 나타납니다. 그 모양을 찾아 기록하는 일은 시간에 따라 변하는 태양 구조를 연구하는 데 도움이 됩니다. [NSO의 필라멘트 설명](https://nso.edu/for-public/sun-science/prominence-filaments/)
 
-## 저장소에 포함하는 것
+[2026 태양 필라멘트 분할 대회](https://www.kaggle.com/competitions/filament-segmentation-2026)의 목표는 관측 영상에서 **필라멘트를 하나씩 찾아 각각의 영역을 표시하는 것**입니다. 이 프로젝트는 그 과정을 자동화합니다.
 
-- `tools/`: 평가, 모델 학습, 재개, 독립 추론, 제출 생성 및 실험 코드.
-- `docs/`: 설계·실험 기록과 해석 범위.
-- `tests/`: 작은 합성 사례로 평가·좌표·캐시·재개를 검사하는 테스트와, 별도 자료가 필요한 재현 검사.
-- `requirements-*.txt`: 작업별 의존성.
-- `configs/`: 공개 가능한 설정 예제. 실제 데이터 경로는 실행 환경에서 지정합니다.
+![태양 전체 Hα 관측 영상, 검은 필라멘트 확대 모습, 청록색으로 표시한 정답 영역을 왼쪽부터 보여준다.](docs/assets/readme/filament_intro.jpg)
 
-대회 이미지·정답 파일·분할 CSV·합성 이미지·체크포인트·예측 RLE/CSV·원시 캐시·결과 ZIP은 별도로 보관합니다. 저장소를 clone하는 것만으로 과거 학습 가중치나 비공개 입력이 생기지는 않습니다. 필요한 파일을 본인의 Google Drive 또는 로컬 데이터 경로에 준비해야 합니다.
+*왼쪽부터: 태양에서 위치 찾기 → 가까이 보기 → 모양 그리기. 청록색 영역은 공개 SWEFil 데이터에 사람이 표시한 정답입니다.*
 
-## 설치와 CPU 평가
-
-Python 3.12의 별도 환경에서 시작할 수 있습니다. 아래 명령은 저장소 루트 기준입니다.
-
-```bash
-git clone https://github.com/ikjoo5/solar_filament.git
-cd solar_filament
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements-eval.txt
-python -m unittest discover -s tests -p 'test_filament_eval.py' -v
-```
-
-제출 CSV의 형식·RLE·마스크 겹침만 확인하려면:
-
-```bash
-python tools/filament_eval.py --pred /path/to/submission.csv
-```
-
-정답이 있는 같은 validation의 PQ를 계산하려면:
-
-```bash
-python tools/filament_eval.py \
-  --pred /path/to/validation_predictions.csv \
-  --gt /path/to/validation_gt.csv
-```
-
-GT가 없으면 PQ를 계산하지 않습니다. 공개 test 예측과의 IoU는 참조 일치도이며 실제 test recall이나 PQ가 아닙니다. 정답 JSON의 변환은 `python tools/convert_annotations.py --help`에서 확인할 수 있습니다. 다른 split의 예측과 GT를 조합하지 마세요.
-
-## 기존 기준선으로 제출 파일 생성
-
-CUDA와 호환되는 PyTorch/torchvision이 설치된 GPU 환경이 필요합니다. Colab에서는 제공되는 CUDA 조합을 유지하고 필요한 추가 패키지를 설치합니다.
-
-```bash
-python -m pip install -r requirements-submission.txt
-```
-
-기본 제출 엔진은 A100에서 사용했던 native batch 4 구성입니다. 다음과 같이 **실제 경로로 수정한 JSON**을 저장합니다.
-
-편집 가능한 예제는 [A100 설정](configs/submission.example.json), [T4 설정](configs/submission_t4.example.json)에 있습니다. `.local.json` 이름으로 복사한 개인 설정은 Git에서 제외됩니다. T4 Colab 노트북은 기존 CUDA 라이브러리를 유지하는 별도 설치 helper를 사용합니다. `requirements-eval.txt`와 `requirements-submission.txt`의 NumPy 고정 버전은 다르므로 CPU 평가 환경과 GPU 재현 환경을 분리하세요.
-
-```json
-{
-  "test_images": "/data/MAGFiLO_1.0_Kaggle_2026/test/test_images",
-  "yolo_checkpoint": "/checkpoints/original_yolo/best.pt",
-  "native_checkpoint": "/checkpoints/original_native/best.pt",
-  "train_split": "/data/splits/train_split.csv",
-  "val_split": "/data/splits/val_split.csv",
-  "output": "/outputs/frozen_baseline_v1",
-  "keep_stages": false
-}
-```
-
-```bash
-python tools/submission_driver.py \
-  --config /path/to/submission.local.json \
-  --result /path/to/submission_result.json
-```
-
-- 입력은 원본 test 이미지와 두 가중치입니다. 기존 제출 CSV나 공개 0.55 RLE를 읽어 기준선 예측에 섞지 않습니다.
-- 원래 가중치와 분할의 SHA를 검사합니다. 다른 모델을 이 고정 재현 경로에 넣고 SHA 검사만 해제하는 방식으로 비교하지 않습니다.
-- 이미지별 완료 결과와 단계 캐시를 저장합니다. 같은 입력·설정·코드·런타임에서 재실행하면 완료 부분을 재사용합니다. 조건이 바뀌면 새 output 폴더를 사용합니다.
-- 모든 test 이미지가 끝난 후 `submission_pq0472593.csv`를 씁니다. 파일명의 숫자는 과거 validation 기준선이며, 생성 파일의 LB 점수를 뜻하지 않습니다.
-- Kaggle에 자동 제출하지 않습니다.
-
-T4 batch 1, 원본 전체 파이프라인과 R1을 같은 추론에서 비교하는 별도 엔진은 `tools/r1_test_submission.py`입니다. `--help`와 [현재 파이프라인의 T4 설정](docs/CURRENT_PIPELINE.ko.md#t4에서-기준선과-r1을-같이-만드는-경로)을 확인하세요. R1은 사용자가 확인한 표시 public LB에서 **0.39→0.39**였으므로 채택된 상승으로 기록하지 않습니다.
-
-## 학습과 실험 진입점
-
-| 목적 | 주요 소스 | 필요한 별도 자료 |
+| 입력 | 출력 | 어려운 점 |
 |---|---|---|
-| native U-Net 학습·재개 | `solar_a100_train_standalone.py`, `native_mixed_data.py` | GONG train/valid, annotations, 선택한 합성 자료 |
-| 고정 분할 합성 실험 | `targeted_synthetic_data.py`, `targeted_synthetic_training.py` | train 유래 donor·배경·출처 메타데이터 |
-| 5-fold 학습·OOF 평가 | `fivefold_study.py`, `fivefold_full_pipeline.py`, `evaluate_fivefold_study.py` | 새 fold 분할 및 해당 fold의 가중치/캐시 |
-| CHASE 데이터·학습 | `chase_transfer_data.py`, `chase_best84_training.py`, `chase_yolo_training.py` | CHASE 이미지/마스크와 원래 GONG 가중치 |
-| CHASE 독립 비교 | `chase_independent_plain_worker.py` | 완료한 CHASE 실험의 Drive 폴더·manifest·4개 가중치 |
-| detection → ROI segmentation 실험 | `roi_filament_pipeline.py`, `bbox_probe_pipeline.py`, `detr_best84_pipeline.py` | 실험별 detector/segmenter 가중치와 설정 |
+| 2048 × 2048 크기의 GONG Hα 관측 영상 | 필라멘트마다 따로 구분한 픽셀 마스크 | 희미한 가지, 고르지 않은 밝기, 주변의 다른 어두운 구조 |
 
-모든 소스는 `tools/` 아래에 있습니다. 각 CLI의 `--help`와 해당 실험 문서를 확인하세요. 일부 과거 실행기는 입력 SHA·출처를 고정한 **기존 실행 재현용**이며 범용 학습 명령이 아닙니다. Colab 패키지 생성기에는 별도 assets가 필요한 경우가 있으므로, 파일이 없는데 빈 데이터나 임의 manifest로 우회하지 않습니다.
+**마스크는 물체에 속하는 픽셀을 표시한 지도입니다.** 서로 다른 색은 각각의 필라멘트를 구분하기 위한 표시입니다. 희미한 부분까지 모양을 따라가면서도, 가까이 있는 두 필라멘트가 하나로 합쳐지지 않도록 해야 합니다. **Panoptic Quality(PQ)** 지표는 모양의 정확도와 개체 구분을 함께 평가합니다.
 
-전체 테스트를 무조건 실행하면 외부 데이터·과거 실행 디렉터리·GPU가 필요한 검사가 포함될 수 있습니다. 새 환경에서는 먼저 위의 데이터 없는 평가 테스트를 실행하고, 작업에 필요한 테스트와 실제 입력 검증을 이어서 실행합니다. CPU 검사 통과는 새 GPU 학습 완료나 점수 향상의 증거가 아닙니다.
+## 필라멘트를 찾는 파이프라인
 
-데이터 없이 실행하는 핵심 CPU 검사 모음은 다음과 같습니다. 이 설치 명령은 **별도 CPU 환경용**이며, 동작 중인 Colab CUDA 환경에 적용해 GPU용 PyTorch를 교체하지 않습니다.
+두 모델이 같은 영상을 나란히 살펴봅니다. **YOLO26s-seg**는 필라멘트 후보와 그 영역을 찾고, **ConvNeXt-Tiny + U-Net**은 각 픽셀이 필라멘트일 가능성을 계산합니다. 두 결과를 결합해 희미한 구조를 보완하고 경계를 다듬습니다.
 
-```bash
-python -m pip install torch==2.9.1 torchvision==0.24.1 \
-  --index-url https://download.pytorch.org/whl/cpu
-python -m pip install -r requirements-dev.txt
-python tools/check_core.py
+```mermaid
+flowchart TD
+    A["태양 관측 영상<br/>GONG Hα"] --> B["태양 원반 밝기 보정<br/>겹치는 작은 영상으로 나누기"]
+    B --> Y["물체 후보 찾기<br/>YOLO26s-seg"]
+    B --> U["픽셀 단위로 모양 찾기<br/>ConvNeXt-Tiny + U-Net"]
+    Y --> F["두 모델의 결과 결합<br/>경계 정리와 개체 구분"]
+    U --> F
+    F --> O["필라멘트마다 하나의 마스크<br/>제출용 CSV"]
+    classDef input fill:#fff0d6,stroke:#b56916,color:#33220c
+    classDef detector fill:#e7f1ff,stroke:#397ac0,color:#143555
+    classDef segmenter fill:#f0eaff,stroke:#8058bb,color:#392552
+    classDef result fill:#ddf6ef,stroke:#23816c,color:#123e34
+    class A,B input
+    class Y detector
+    class U segmenter
+    class F,O result
 ```
 
-동일한 검사 목록을 GitHub Actions에서도 실행합니다. 데이터·과거 결과가 필요한 전체 이력 테스트를 이 핵심 검사에 포함한 것으로 표시하지 않습니다.
+태양은 가장자리로 갈수록 어두워 보이므로 먼저 이 밝기 차이를 보정합니다. 영상을 겹치는 작은 영역으로 나누어 작은 구조를 살피고, 여러 방향에서 얻은 예측을 원본 좌표로 되돌린 뒤 결합합니다.
 
-## 실험 원칙
+![같은 관측 영역에 대해 원본, YOLO 예측, U-Net 예측, 두 모델을 결합한 개별 필라멘트 마스크를 보여준다.](docs/assets/readme/model_predictions.jpg)
 
-- 재학습 비교에는 원래 고정 train 616장 / validation 91장을 사용합니다. validation은 101개 annotator 그룹과 708개 객체를 포함합니다.
-- 5-fold OOF는 각 영상을 학습하지 않은 fold 모델의 예측으로만 구성합니다. `best84`나 다른 fold의 학습 가중치를 새 OOF에 끼워 넣지 않습니다.
-- 합성의 donor·배경·영상 통계는 train에서만 가져옵니다. 검증·test 자료를 합성 학습 재료로 쓰지 않습니다.
-- PQ와 함께 SQ/RQ·TP/FP/FN을 기록하고, 반복 사용한 validation/OOF의 개선과 실제 LB 개선을 구분합니다.
-- CHASE는 계속 활용할 연구 대상입니다. CHASE-only 60에폭 가중치는 현재 기준선을 대체하지 않습니다. GONG 혼합·영상 적응·형태 합성은 별도 실험으로 설계하며, SWEFFI는 후속 단계로 보류합니다.
+*저장된 실제 예측 예시: 입력 → 두 모델의 후보 → 결합된 필라멘트. 최종 결과에서는 각 픽셀이 최대 하나의 필라멘트에만 속합니다.*
+
+## 주변 문맥까지 함께 보기
+
+희미한 검은 부분만 보는 것보다, 주변으로 이어지는 긴 구조를 함께 보면 필라멘트를 구분하기 쉬워집니다. **문맥 블록(context block)** 방법은 U-Net 안에서 이런 넓은 시야를 더합니다. 여러 범위의 주변 정보를 살피는 확장 합성곱과 현재 입력 영역 전체를 요약하는 풀링을 결합합니다. 학습 가능한 게이트가 문맥 정보의 반영 정도를 조절하고, 스킵 연결은 세밀한 위치 정보를 디코더에 전달합니다.
+
+```mermaid
+flowchart TD
+    I["잘라낸 입력 영상"] --> E["ConvNeXt-Tiny 인코더"]
+    E --> F["가장 깊은 특징"]
+    F --> C["넓은 문맥 정보<br/>여러 범위의 합성곱<br/>+ 입력 영역 요약"]
+    F --> G["학습 가능한 잔차 게이트"]
+    C --> G
+    G --> D["U-Net 디코더"]
+    E -->|"세부 특징 전달"| D
+    D --> M["픽셀별 예측"]
+    classDef base fill:#e7f1ff,stroke:#397ac0,color:#143555
+    classDef context fill:#fff0d6,stroke:#b56916,color:#33220c
+    classDef output fill:#ddf6ef,stroke:#23816c,color:#123e34
+    class I,E,F,D base
+    class C,G context
+    class M output
+```
+
+[모델 구조 자세히 보기 →](docs/MODEL_ARCHITECTURE.md)
+
+## 새로운 학습 예시 만들기
+
+모델이 더 다양한 모양을 학습하도록 **형태 기반 데이터 합성**도 시도합니다. CHASE 마스크에서 가져온 필라멘트 모양을 회전·반전하거나 크기를 바꿔 깨끗한 태양 배경에 배치합니다. GONG 학습 관측에서 측정한 어두움과 경계 특성을 이용해 배경의 질감을 살리며 필라멘트를 표현하고, 배치한 모양으로 정답 마스크도 함께 만듭니다.
+
+![배경, 가져온 필라멘트 모양, 어두운 구조를 합성한 영상, 색으로 구분한 정답 마스크의 네 단계를 보여준다.](docs/assets/readme/synthesis_demo.jpg)
+
+*공개 CHASE 모양과 절차적으로 생성한 배경으로 합성 방식을 보여주는 렌더링 예시입니다. 마지막 패널의 색은 자동으로 생성한 정답을 나타냅니다. [이미지 출처와 재현 방법](docs/assets/readme/README.md)*
+
+CHASE 형태 합성 실험에서는 이미지마다 서로 겹치지 않는 모양 세 개를 배치합니다. 실제 관측과 합성 예시를 섞어 학습하며, 검증·시험 영상은 합성 재료에서 제외합니다.
+
+[합성 방법과 학습 설정 자세히 보기 →](docs/CHASE_SHAPE_T4_TRAINING.md)
+
+## 프로젝트 더 살펴보기
+
+| 알고 싶은 내용 | 문서 |
+|---|---|
+| 코드 실행 방법과 실험 결과 | [한국어 기술 가이드](docs/TECHNICAL_GUIDE.ko.md) |
+| 전처리, 마스크 결합, 제출 파일 생성 | [현재 파이프라인](docs/CURRENT_PIPELINE.ko.md) |
+| U-Net과 문맥 블록의 구조 | [모델 구조](docs/MODEL_ARCHITECTURE.md) |
+| GONG·SWEFil·합성 예시를 함께 쓰는 학습 | [혼합 데이터 학습](docs/SWEFIL_RETRAINING_PLAN.md) |
+| 그림 출처와 재현 방법 | [그림 안내](docs/assets/readme/README.md) |
+
+### 참고 자료
+
+- [U-Net](https://arxiv.org/abs/1505.04597) · [ConvNeXt](https://arxiv.org/abs/2201.03545) · [Panoptic Quality](https://arxiv.org/abs/1801.00868)
+- 태양 관측: **GONG / NSO**. 도입부의 공개 관측 영상과 정답: **SWEFil, Antonio Reche and Consuelo Cid, CC BY 4.0**. 전체 출처는 [그림 안내](docs/assets/readme/README.md)에 정리했습니다.

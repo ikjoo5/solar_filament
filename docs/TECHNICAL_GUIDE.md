@@ -43,7 +43,7 @@ The [SWEFil mixed T4 notebook](https://colab.research.google.com/github/ikjoo5/s
 - [CHASE versus GONG](CHASE_VS_GONG_20261104.md): observation, label, and dataset differences, with historical settings identified.
 - [CHASE training design](CHASE_BOTH_TRAINING.md): historical training instructions and configuration, not a report that every planned run was completed.
 
-The original Korean README and `.ko.md` documents are retained. Dated experiment documents remain historical records in Korean; the English guides above provide the current entry points and distinguish completed work from proposals.
+The original Korean execution guide is preserved in the [Korean technical guide](TECHNICAL_GUIDE.ko.md), alongside the `.ko.md` experiment documents. Dated experiment documents remain historical records in Korean; the English guides above provide the current entry points and distinguish completed work from proposals.
 
 ## Repository contents
 

@@ -39,6 +39,8 @@ logs/
 !docs/assets/readme/filament_intro.jpg
 !docs/assets/readme/preprocessing.jpg
 !docs/assets/readme/model_predictions.jpg
+!docs/assets/readme/solar_eruption_nasa.jpg
+!docs/assets/readme/synthesis_demo.jpg
 *.jpeg
 *.png
 *.tif

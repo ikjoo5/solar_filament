@@ -1,6 +1,37 @@
 # README image sources and reproduction
 
-These figures explain the project using real observations, a human annotation, and archived model predictions. They are original figure layouts, not copied illustrations or newly generated model results. Only the small rendered JPEGs are included in Git.
+The README combines a credited NASA context photograph, real Hα observations and annotations, archived model predictions, and a rendering illustration of data synthesis. The sections below identify each source and how it is used. Full training images, prediction exports and weights stay outside Git.
+
+## Color introduction: NASA solar filament eruption
+
+`solar_eruption_nasa.jpg` is the unmodified 1920 × 1080 image from [NASA SVS: August 31, 2012 Magnificent CME](https://svs.gsfc.nasa.gov/11095/).
+
+- Credit: **NASA/Goddard Space Flight Center**.
+- [Original JPEG](https://svs.gsfc.nasa.gov/vis/a010000/a011000/a011095/304-171_Overlay_Blend_Crop.jpg).
+- The image combines SDO extreme-ultraviolet observations at 304 Å and 171 Å. It introduces the physical subject; it is not a GONG Hα competition input or a model result.
+- Use follows [NASA's images and media guidance](https://www.nasa.gov/nasa-brand-center/images-and-media/); the README credits the source and does not imply NASA endorsement. NASA media terms are separate from the SWEFil and CHASE CC BY licenses below.
+- SHA-256: `e67cce379ebd4f2a4afc180e3bd9f5c3a57b26585b65411dfb615010ddf0b5ae`.
+
+## Shape-synthesis illustration
+
+`synthesis_demo.jpg` shows the repository's shape-rendering method as four panels: background, donor shapes, rendered composite, and the corresponding instance labels. It uses public CHASE mask geometry and a procedural grayscale background, rather than redistributing the private clean-background image or a training sample. Display colors distinguish shapes and labels; solar intensity panels remain grayscale.
+
+The figure is generated with `tools/build_readme_synthesis_demo.py`, which calls the existing `render_at` function in `tools/chase_shape_synthesis.py`. The demo's appearance parameters are illustrative, not values estimated from the private GONG training images. No model inference or training is performed. See [`synthesis_demo_provenance.json`](synthesis_demo_provenance.json) for the public source, hashes, seed, rendering parameters, and output checks.
+
+The actual CHASE-shape training method measures appearance from GONG training observations and places CHASE shapes on copies of the supplied clean background; see the [training recipe](../../CHASE_SHAPE_T4_TRAINING.md). The README figure explains the rendering operation with independently reproducible inputs.
+
+- Source: [CHASE AHAS dataset, Zenodo record 21582245](https://zenodo.org/records/21582245), DOI `10.5281/zenodo.21582245`, by **Jiarui Hu, Qi Hao, Zheng Zhi, P. F. Chen, Chuan Li and Yifan Meng**, under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- Geometry donor: `RSM20240101T061747_0000_HA`, connected components 38, 18 and 12 from the automatic binary mask. The figure translates these shapes onto a new background and adds display colors; component boundaries are preserved.
+- Seed: `20261107`; attenuation settings: `center_tau=0.25`, `edge_ratio=0.3`, `variation=0.15`, `width=5`.
+- The script downloads only one 13,917-byte mask through HTTP byte ranges and checks it against the repository manifest and a pinned SHA-256. It needs NumPy, OpenCV, Matplotlib, pycocotools, SciPy and PyTorch, as used by the existing synthesis renderer.
+
+From the repository root:
+
+```bash
+python tools/build_readme_synthesis_demo.py --cache /path/to/demo-cache
+```
+
+The script checks that instance masks are disjoint, donor geometry is preserved, labeled pixels are darkened, and pixels outside the inserted shapes are unchanged.
 
 ## Observation and annotation credits
 

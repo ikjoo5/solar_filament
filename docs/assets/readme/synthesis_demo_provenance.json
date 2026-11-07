@@ -1,0 +1,134 @@
+{
+  "title": "Illustrative CHASE-shape renderer demo",
+  "scope": "Method illustration only. No model training/inference; this is not a sample from the private training synthesis archive.",
+  "source": {
+    "observation_id": "RSM20240101T061747_0000_HA",
+    "url": "https://zenodo.org/api/records/21582245/files/data.zip/content",
+    "archive_record": "https://zenodo.org/records/21582245",
+    "doi": "10.5281/zenodo.21582245",
+    "license": "CC BY 4.0",
+    "credit": "Jiarui Hu, Qi Hao, Zheng Zhi, P. F. Chen, Chuan Li and Yifan Meng",
+    "member": "AHAS/train/masks/RSM20240101T061747_0000_HA.png",
+    "sha256": "cc22091a6f40b230a546b236d8366095a4644377ebdd920bd8544f77aa4335e7",
+    "bytes": 13917,
+    "crc32": 3648452074,
+    "manifest": "configs/chase_ahas2024_2025_manifest.json",
+    "manifest_sha256": "0321fccc3f887783bb70d6257d34aa1c5be65df55c27c9d13b35d2979315eb4d",
+    "retrieval": "Four HTTP byte ranges; member CRC, length and pinned SHA-256 checked. Whole-archive MD5 not recomputed.",
+    "annotation_scope": "AHAS automatic binary mask; connected components supply geometry, not verified physical instance IDs."
+  },
+  "background": {
+    "kind": "procedural grayscale texture, not an observation",
+    "seed": 20261107,
+    "shape": [
+      512,
+      512
+    ],
+    "implementation": "procedural_background in tools/build_readme_synthesis_demo.py",
+    "raw_pixel_sha256": "437ac0cc3d9b6ef2efa4e756e36f109dae8ce68c162fb26dd65069d2eda9ad5e"
+  },
+  "appearance": {
+    "kind": "fixed illustrative values, not measured GONG training statistics",
+    "center_tau": 0.25,
+    "edge_ratio": 0.3,
+    "variation": 0.15,
+    "width": 5
+  },
+  "renderer": {
+    "function": "chase_shape_synthesis.render_at",
+    "source_sha256": "e2f6ef9ffa7a9df1f0df5d0f0f22bb356b4f3ff1e047e51cf5919386ca8e10a7",
+    "geometry": {
+      "cx": 256.0,
+      "cy": 256.0,
+      "radius": 400.0
+    },
+    "records": [
+      {
+        "instance": 1,
+        "source_component": 38,
+        "source_bbox_xywh": [
+          1350,
+          1555,
+          240,
+          67
+        ],
+        "placement_xy": [
+          60,
+          85
+        ],
+        "transform": "translation only; native mask pixel size preserved",
+        "render_seed": 20261108,
+        "renderer_quality": {
+          "visible_fraction": 1.0,
+          "median_darkening_dn": 30.0,
+          "mean_darkening_dn": 30.236825942993164,
+          "source_center_tau": 0.25
+        },
+        "mask_sha256": "57012dcffdaf3facc675ed1b76d0c8265e4aeef0d84bd0d5ba4bbbe8b0a2860f"
+      },
+      {
+        "instance": 2,
+        "source_component": 18,
+        "source_bbox_xywh": [
+          451,
+          1096,
+          50,
+          232
+        ],
+        "placement_xy": [
+          100,
+          220
+        ],
+        "transform": "translation only; native mask pixel size preserved",
+        "render_seed": 20261109,
+        "renderer_quality": {
+          "visible_fraction": 1.0,
+          "median_darkening_dn": 30.0,
+          "mean_darkening_dn": 30.242658615112305,
+          "source_center_tau": 0.25
+        },
+        "mask_sha256": "a02287f662ded36505c7897ff6da85d23552b26c2f764ed8cb223a41ea8b03ec"
+      },
+      {
+        "instance": 3,
+        "source_component": 12,
+        "source_bbox_xywh": [
+          1744,
+          735,
+          69,
+          100
+        ],
+        "placement_xy": [
+          340,
+          280
+        ],
+        "transform": "translation only; native mask pixel size preserved",
+        "render_seed": 20261110,
+        "renderer_quality": {
+          "visible_fraction": 1.0,
+          "median_darkening_dn": 28.0,
+          "mean_darkening_dn": 28.37580108642578,
+          "source_center_tau": 0.25
+        },
+        "mask_sha256": "d54c95c5eeda0869db8c30f1e1bda56c2ee31f9ff4b8e7610cc6f30aed99926c"
+      }
+    ]
+  },
+  "checks": {
+    "outside_mask_pixels_unchanged": true,
+    "instance_masks_disjoint": true,
+    "native_donor_geometry_preserved": true,
+    "every_labeled_pixel_darkened": true
+  },
+  "reproduction": "python tools/build_readme_synthesis_demo.py --cache /path/to/demo-cache",
+  "versions": {
+    "numpy": "2.3.5",
+    "opencv": "5.0.0",
+    "matplotlib": "3.10.8"
+  },
+  "output": {
+    "path": "docs/assets/readme/synthesis_demo.jpg",
+    "sha256": "fd9ae078e2193003773f1b27057613c51fef0846a1ca3f250e79c6ba047aa5e1",
+    "bytes": 214323
+  }
+}
