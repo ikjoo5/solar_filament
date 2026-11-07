@@ -43,6 +43,7 @@ logs/
 !docs/assets/readme/synthesis_demo.jpg
 *.jpeg
 *.png
+!docs/assets/readme/competition_overview.png
 *.tif
 *.tiff
 *.webp

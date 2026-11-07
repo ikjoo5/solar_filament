@@ -2,6 +2,8 @@
 
 **Teaching a computer to find the Sun's dark ribbons — and trace each one separately.**
 
+![Solar Filament Segmentation Challenge 2026: observe the Sun, trace filament regions, and separate each filament with its own mask.](docs/assets/readme/competition_overview.png)
+
 ## What are we looking for?
 
 **Solar filaments** are long strands of relatively cool, dense plasma held above the Sun by magnetic fields. Against the bright solar disk, they look like dark ribbons in **Hα**, a wavelength that reveals hydrogen in the solar atmosphere. Identifying their shapes helps researchers study these changing solar structures. [Learn more at NSO](https://nso.edu/for-public/sun-science/prominence-filaments/).

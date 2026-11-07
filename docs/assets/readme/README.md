@@ -1,6 +1,12 @@
 # README image sources and reproduction
 
-The README combines a credited NASA context photograph, real Hα observations and annotations, archived model predictions, and a rendering illustration of data synthesis. The sections below identify each source and how it is used. Full training images, prediction exports and weights stay outside Git.
+This directory contains the approved competition overview artwork, a credited NASA photograph, real Hα observations and annotations, archived model predictions, and a rendering illustration of data synthesis. The sections below identify each source and how it is used. Full training images, prediction exports and weights stay outside Git.
+
+## Competition overview
+
+`competition_overview.png` is original artwork created with OpenAI image generation and approved by the repository owner for the README. It presents the competition task as observation → filament regions → separate instance masks. The approved PNG is included unchanged.
+
+- SHA-256: `91257ae0a75a069ff444f8ab53d2577652d324e2818c2e4001a26af18ba038b5`.
 
 ## Color introduction: NASA solar filament eruption
 
