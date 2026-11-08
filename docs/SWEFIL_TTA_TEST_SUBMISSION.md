@@ -2,7 +2,9 @@
 
 [Open the single-cell T4 notebook](https://colab.research.google.com/github/ikjoo5/solar_filament/blob/main/notebooks/SolarFilament_SWEFil_TTA_Test_T4.ipynb)
 
-This generates a new submission from the same epoch100 ConvNeXt-Tiny U-Net with **four-view flip TTA**. Its measured validation PQ is **0.420748**, compared with **0.410866** for the original native-only recipe. FP decreased from 350 to 331 and FN from 247 to 241. The original native-only test submission received a user-reported public LB of **0.34**. The new TTA leaderboard score is unknown.
+This generates a submission from the same epoch100 ConvNeXt-Tiny U-Net with **four-view flip TTA**. Its measured validation PQ is **0.420748**, compared with **0.410866** for the original native-only recipe. FP decreased from 350 to 331 and FN from 247 to 241. The user reported the same displayed public LB of **0.34** for both submissions. The unrounded scores were not provided. TTA is retained as a measured ablation, not an adopted leaderboard improvement.
+
+The uploaded TTA export passed the complete 180-image, non-overlap and CSV/cache consistency checks: 1,479 masks over 177 nonempty images, with the same three empty images as the native export. Agreement with the fixed public-reference panels fell from 57/318 to 47/318. These references are predictions rather than test ground truth, so their agreement does not measure test PQ or FP/FN.
 
 ## Fixed inference recipe
 
@@ -40,4 +42,4 @@ The baseline submission stays in its original folder. The new output contains co
 
 The review archive enables comparison with the previous native predictions and tracking of the existing 216-addition/102-replacement reference panels. Those panels are public predictions, not test ground truth; agreement with them is a diagnostic rather than PQ.
 
-The selected TTA method has been measured on validation. This new test launcher is checked with CPU tests; test inference and public LB must be obtained in Colab and Kaggle respectively.
+The TTA method has been measured on validation and run by the user on the test images. Its uploaded output was independently audited, and its displayed public LB was reported as 0.34. The notebook remains available to reproduce this completed comparison; rerunning the identical recipe is not a new improvement experiment.
