@@ -6,7 +6,7 @@
 
 **Solar filaments** are long strands of relatively cool, dense plasma held above the Sun by magnetic fields. Against the bright solar disk, they look like dark ribbons in **Hα**, a wavelength that reveals hydrogen in the solar atmosphere. Identifying their shapes helps researchers study these changing solar structures. [Learn more at NSO](https://nso.edu/for-public/sun-science/prominence-filaments/).
 
-The [Solar Filament Segmentation Challenge 2026](https://www.kaggle.com/competitions/filament-segmentation-2026) asks a computer to turn a telescope image into **a separate outline for every filament**. This project builds that image-to-mask pipeline.
+The [Solar Filament Segmentation Challenge 2026](https://www.kaggle.com/competitions/filament-segmentation-2026) asks a computer to turn a telescope image into **a separate outline for every filament**. This project builds a pipeline that produces a separate pixel mask for each solar filament.
 
 ![From a full-disk Hα observation, to a close-up of a dark filament, to its outline highlighted in teal.](docs/assets/readme/filament_intro.jpg)
 
